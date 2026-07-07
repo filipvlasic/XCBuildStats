@@ -1,0 +1,147 @@
+import XCTest
+@testable import XCBuildStats
+
+final class AggregatorTests: XCTestCase {
+    private let calendar: Calendar = {
+        var calendar: Calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        calendar.firstWeekday = 2
+        return calendar
+    }()
+
+    private func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 0, _ minute: Int = 0) -> Date {
+        return calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour, minute: minute))!
+    }
+
+    private func build(_ project: String, _ start: Date, seconds: TimeInterval, clean: Bool = false, succeeded: Bool = true) -> BuildRecord {
+        return BuildRecord(
+            id: UUID().uuidString,
+            project: project,
+            scheme: nil,
+            title: clean ? "Clean \(project)" : "Build \(project)",
+            started: start,
+            stopped: start.addingTimeInterval(seconds),
+            succeeded: succeeded,
+            errors: succeeded ? 0 : 2,
+            warnings: 0,
+            status: succeeded ? "S" : "E"
+        )
+    }
+
+    func testPeriodIntervals() {
+        let anchor: Date = date(2026, 7, 6, 12)
+
+        let day: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: anchor, calendar: calendar)
+        XCTAssertEqual(day.start, date(2026, 7, 6))
+        XCTAssertEqual(day.duration, 86400)
+
+        let month: DateInterval = Aggregator.periodInterval(grouping: .month, anchor: anchor, calendar: calendar)
+        XCTAssertEqual(month.start, date(2026, 7, 1))
+        XCTAssertEqual(month.end, date(2026, 8, 1))
+
+        let year: DateInterval = Aggregator.periodInterval(grouping: .year, anchor: anchor, calendar: calendar)
+        XCTAssertEqual(year.start, date(2026, 1, 1))
+        XCTAssertEqual(year.end, date(2027, 1, 1))
+
+        let week: DateInterval = Aggregator.periodInterval(grouping: .week, anchor: anchor, calendar: calendar)
+        XCTAssertEqual(week.duration, 7 * 86400)
+    }
+
+    func testBuildsBoundaryHalfOpen() {
+        let period: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: date(2026, 7, 6), calendar: calendar)
+        let atStart: BuildRecord = build("A", period.start, seconds: 10)
+        let atEnd: BuildRecord = build("A", period.end, seconds: 10)
+        let inside: BuildRecord = build("A", date(2026, 7, 6, 10), seconds: 10)
+
+        let result: [BuildRecord] = Aggregator.builds([atStart, atEnd, inside], in: period)
+        XCTAssertEqual(result.count, 2, "period.start included, period.end excluded")
+    }
+
+    func testSummaryAndBars() {
+        let period: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: date(2026, 7, 6), calendar: calendar)
+        let builds: [BuildRecord] = [
+            build("A", date(2026, 7, 6, 9), seconds: 120),
+            build("A", date(2026, 7, 6, 9, 30), seconds: 60),
+            build("A", date(2026, 7, 6, 11), seconds: 30)
+        ]
+
+        let summary: PeriodSummary = Aggregator.summary(builds, in: period)
+        XCTAssertEqual(summary.count, 3)
+        XCTAssertEqual(summary.totalDuration, 210)
+
+        let bars: [Bar] = Aggregator.bars(builds, in: period, subComponent: .hour, calendar: calendar)
+        XCTAssertEqual(bars.count, 2, "two distinct hour buckets")
+        let hour9: Bar? = bars.first { calendar.component(.hour, from: $0.start) == 9 }
+        XCTAssertEqual(hour9?.minutes, 3, "(120 + 60) / 60")
+    }
+
+    func testProjectStatsSortedByDuration() {
+        let period: DateInterval = Aggregator.periodInterval(grouping: .year, anchor: date(2026, 7, 6), calendar: calendar)
+        let builds: [BuildRecord] = [
+            build("Small", date(2026, 2, 1), seconds: 10),
+            build("Big", date(2026, 3, 1), seconds: 100),
+            build("Big", date(2026, 4, 1), seconds: 50)
+        ]
+
+        let stats: [ProjectStat] = Aggregator.projectStats(builds, in: period)
+        XCTAssertEqual(stats.first?.project, "Big")
+        XCTAssertEqual(stats.first?.totalDuration, 150)
+        XCTAssertEqual(stats.first?.count, 2)
+    }
+
+    func testSummaryTracksFailures() {
+        let period: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: date(2026, 7, 6), calendar: calendar)
+        let builds: [BuildRecord] = [
+            build("A", date(2026, 7, 6, 9), seconds: 60, succeeded: true),
+            build("A", date(2026, 7, 6, 10), seconds: 30, succeeded: false),
+            build("A", date(2026, 7, 6, 11), seconds: 30, succeeded: false)
+        ]
+
+        let summary: PeriodSummary = Aggregator.summary(builds, in: period)
+        XCTAssertEqual(summary.count, 3)
+        XCTAssertEqual(summary.failedCount, 2)
+        XCTAssertEqual(summary.successCount, 1)
+        XCTAssertEqual(summary.failedDuration, 60)
+        XCTAssertEqual(summary.successRate, 1.0 / 3.0, accuracy: 0.0001)
+    }
+
+    func testCanGoForward() {
+        let now: Date = date(2026, 7, 6, 12)
+        let past: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: date(2026, 7, 4), calendar: calendar)
+        XCTAssertTrue(Aggregator.canGoForward(from: past, now: now))
+
+        let current: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: now, calendar: calendar)
+        XCTAssertFalse(Aggregator.canGoForward(from: current, now: now))
+    }
+
+    func testCurrentPeriodTracksRealDay() {
+        let lateJul6: Date = date(2026, 7, 6, 23, 30)
+        let earlyJul7: Date = date(2026, 7, 7, 0, 30)
+        XCTAssertEqual(Aggregator.periodInterval(grouping: .day, now: lateJul6, offset: 0, calendar: calendar).start, date(2026, 7, 6))
+        XCTAssertEqual(Aggregator.periodInterval(grouping: .day, now: earlyJul7, offset: 0, calendar: calendar).start, date(2026, 7, 7))
+    }
+
+    func testNegativeOffsetIsPreviousPeriod() {
+        let now: Date = date(2026, 7, 15, 12)
+        XCTAssertEqual(Aggregator.periodInterval(grouping: .day, now: now, offset: -1, calendar: calendar).start, date(2026, 7, 14))
+        XCTAssertEqual(Aggregator.periodInterval(grouping: .month, now: now, offset: -1, calendar: calendar).start, date(2026, 6, 1))
+        XCTAssertEqual(Aggregator.periodInterval(grouping: .year, now: now, offset: -1, calendar: calendar).start, date(2025, 1, 1))
+    }
+
+    func testDayRolloverSummary() {
+        let builds: [BuildRecord] = [build("A", date(2026, 7, 6, 10), seconds: 48 * 60)]
+        let now: Date = date(2026, 7, 7, 9)
+        let today: DateInterval = Aggregator.periodInterval(grouping: .day, now: now, offset: 0, calendar: calendar)
+        let yesterday: DateInterval = Aggregator.periodInterval(grouping: .day, now: now, offset: -1, calendar: calendar)
+        XCTAssertEqual(Aggregator.summary(builds, in: today).totalDuration, 0, "today must be empty after rollover")
+        XCTAssertEqual(Aggregator.summary(builds, in: yesterday).totalDuration, 48 * 60)
+    }
+
+    func testCanGoForwardOffset() {
+        let now: Date = date(2026, 7, 7, 12)
+        let current: DateInterval = Aggregator.periodInterval(grouping: .day, now: now, offset: 0, calendar: calendar)
+        let past: DateInterval = Aggregator.periodInterval(grouping: .day, now: now, offset: -1, calendar: calendar)
+        XCTAssertFalse(Aggregator.canGoForward(from: current, now: now))
+        XCTAssertTrue(Aggregator.canGoForward(from: past, now: now))
+    }
+}
