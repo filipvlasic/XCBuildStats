@@ -32,12 +32,19 @@ final class Preferences {
         }
     }
 
+    var pulseMenuBar: Bool {
+        didSet {
+            defaults.set(pulseMenuBar, forKey: Keys.pulseMenuBar)
+        }
+    }
+
     private let defaults: UserDefaults = .standard
 
     private enum Keys {
         static let menuBarDisplay: String = "menuBarDisplay"
         static let excludedProjects: String = "excludedProjects"
         static let disableAnimations: String = "disableAnimations"
+        static let pulseMenuBar: String = "pulseMenuBar"
     }
 
     private init() {
@@ -46,6 +53,7 @@ final class Preferences {
         let excluded: [String] = defaults.stringArray(forKey: Keys.excludedProjects) ?? []
         excludedProjects = Set(excluded)
         disableAnimations = defaults.bool(forKey: Keys.disableAnimations)
+        pulseMenuBar = defaults.bool(forKey: Keys.pulseMenuBar)
     }
 
     func isExcluded(_ project: String) -> Bool {

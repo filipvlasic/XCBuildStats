@@ -41,6 +41,7 @@ struct SettingsView: View {
                     }
                 }
                 Toggle("Disable animations", isOn: $preferences.disableAnimations)
+                Toggle("Pulse menu bar on update", isOn: $preferences.pulseMenuBar)
             } footer: {
                 if !LoginItem.isSupported {
                     Text("Launch at login is available only in the packaged app (not via swift run).")
