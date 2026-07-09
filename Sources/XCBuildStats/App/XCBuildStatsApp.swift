@@ -18,9 +18,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         LoginItem.applyDefaultIfNeeded()
-        DispatchQueue.main.async {
-            InstallerCleanup.offerIfNeeded()
-        }
     }
 }
 

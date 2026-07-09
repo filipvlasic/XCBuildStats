@@ -20,7 +20,6 @@
 		6207AD0C3677936CCA84C423 /* BuildStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096BBD02772B78A74F671CD2 /* BuildStore.swift */; };
 		8BD50D9ADE0F8E6BCF1A2DA8 /* Manifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CAE56988E4FE48857B28C3 /* Manifest.swift */; };
 		9CD232CD8218E21ACEA061BE /* XCBuildStatsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BB46BD0C372E774CE3639CE /* XCBuildStatsApp.swift */; };
-		9E6C454FB8332F9E7C45E592 /* InstallerCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = D86406883283F4B8A75277B5 /* InstallerCleanup.swift */; };
 		B3197F9FBC298607FE1CB7BB /* BuildRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A6A83AFF8BA6C5487D98903 /* BuildRecord.swift */; };
 		C9E92B484475D8FD0635507A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 084FF8D5A761E928242E81D1 /* SettingsView.swift */; };
 		E0E7138D9E398A95B1AE19EE /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F64309C78BE50D00079FBC21 /* DashboardView.swift */; };
@@ -44,7 +43,6 @@
 		B665D9207838923340E40AFB /* AppLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocation.swift; sourceTree = "<group>"; };
 		BB084A308998206E2393014E /* Aggregator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Aggregator.swift; sourceTree = "<group>"; };
 		C5CAE56988E4FE48857B28C3 /* Manifest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Manifest.swift; sourceTree = "<group>"; };
-		D86406883283F4B8A75277B5 /* InstallerCleanup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallerCleanup.swift; sourceTree = "<group>"; };
 		F0A2B07974BEB69890A5B694 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		F64309C78BE50D00079FBC21 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		F776799190D0194994CC7C8A /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
@@ -183,7 +181,6 @@
 			isa = PBXGroup;
 			children = (
 				B665D9207838923340E40AFB /* AppLocation.swift */,
-				D86406883283F4B8A75277B5 /* InstallerCleanup.swift */,
 				7BB46BD0C372E774CE3639CE /* XCBuildStatsApp.swift */,
 			);
 			path = App;
@@ -288,7 +285,6 @@
 				3424A2D4A587C050024BC8E6 /* DashboardViewModel.swift in Sources */,
 				2AF3FEC13BDF0E81875658BA /* DerivedDataWatcher.swift in Sources */,
 				3561C8E53EB0B49CDBA8D5DC /* Exporter.swift in Sources */,
-				9E6C454FB8332F9E7C45E592 /* InstallerCleanup.swift in Sources */,
 				4BCEE76A806D8693124D6000 /* LoginItem.swift in Sources */,
 				8BD50D9ADE0F8E6BCF1A2DA8 /* Manifest.swift in Sources */,
 				3213B13577EDDC0D95E68660 /* ManifestScanner.swift in Sources */,
