@@ -144,4 +144,45 @@ final class AggregatorTests: XCTestCase {
         XCTAssertFalse(Aggregator.canGoForward(from: current, now: now))
         XCTAssertTrue(Aggregator.canGoForward(from: past, now: now))
     }
+
+    func testPreviousPeriodDeltaNilWithoutPreviousData() {
+        let now: Date = date(2026, 7, 7, 12)
+        let todayOnly: [BuildRecord] = [build("A", date(2026, 7, 7, 9), seconds: 100)]
+        XCTAssertNil(Aggregator.previousPeriodDelta(todayOnly, grouping: .day, now: now, offset: 0, calendar: calendar), "no builds yesterday → no delta")
+        XCTAssertNil(Aggregator.previousPeriodDelta([], grouping: .week, now: now, offset: 0, calendar: calendar))
+    }
+
+    func testPreviousPeriodDeltaFraction() {
+        let now: Date = date(2026, 7, 7, 12)
+        let builds: [BuildRecord] = [
+            build("A", date(2026, 7, 6, 9), seconds: 100),
+            build("A", date(2026, 7, 7, 9), seconds: 50)
+        ]
+        let delta: Double? = Aggregator.previousPeriodDelta(builds, grouping: .day, now: now, offset: 0, calendar: calendar)
+        XCTAssertEqual(delta ?? .nan, -0.5, accuracy: 0.0001, "today 50s vs yesterday 100s → -50%")
+
+        let doubled: Double? = Aggregator.previousPeriodDelta(
+            builds + [build("A", date(2026, 7, 7, 10), seconds: 150)],
+            grouping: .day, now: now, offset: 0, calendar: calendar
+        )
+        XCTAssertEqual(doubled ?? .nan, 1.0, accuracy: 0.0001, "today 200s vs yesterday 100s → +100%")
+    }
+
+    func testPreviousPeriodDeltaEmptyCurrentIsFullDrop() {
+        let now: Date = date(2026, 7, 7, 12)
+        let yesterdayOnly: [BuildRecord] = [build("A", date(2026, 7, 6, 9), seconds: 100)]
+        let delta: Double? = Aggregator.previousPeriodDelta(yesterdayOnly, grouping: .day, now: now, offset: 0, calendar: calendar)
+        XCTAssertEqual(delta ?? .nan, -1.0, accuracy: 0.0001)
+    }
+
+    func testPreviousPeriodDeltaRespectsOffsetAndGrouping() {
+        let now: Date = date(2026, 7, 15, 12)
+        let builds: [BuildRecord] = [
+            build("A", date(2026, 5, 10), seconds: 100),
+            build("A", date(2026, 6, 10), seconds: 300)
+        ]
+        let juneVsMay: Double? = Aggregator.previousPeriodDelta(builds, grouping: .month, now: now, offset: -1, calendar: calendar)
+        XCTAssertEqual(juneVsMay ?? .nan, 2.0, accuracy: 0.0001, "June 300s vs May 100s → +200%")
+        XCTAssertNil(Aggregator.previousPeriodDelta(builds, grouping: .month, now: now, offset: -2, calendar: calendar), "May vs April: April empty → nil")
+    }
 }

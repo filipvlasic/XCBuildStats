@@ -101,16 +101,8 @@ final class DashboardViewModel {
         return buildsOnly.map { $0.started }.max()
     }
 
-    /// Percentage change in total build time for the shown period versus the
-    /// immediately preceding period of the same granularity. `nil` when the
-    /// previous period has no builds to compare against.
     var previousPeriodDelta: Double? {
-        let previousPeriod: DateInterval = Aggregator.periodInterval(grouping: grouping, now: now, offset: periodOffset - 1, calendar: calendar)
-        let previous: PeriodSummary = Aggregator.summary(buildsOnly, in: previousPeriod)
-        guard previous.count > 0, previous.totalDuration > 0 else {
-            return nil
-        }
-        return (summary.totalDuration - previous.totalDuration) / previous.totalDuration
+        return Aggregator.previousPeriodDelta(buildsOnly, grouping: grouping, now: now, offset: periodOffset, calendar: calendar)
     }
 
     var isCurrentPeriod: Bool {
@@ -195,12 +187,16 @@ final class DashboardViewModel {
     }
 
     func copySummary() {
+        let text: String = Self.summaryLine(periodTitle: periodTitle, summary: summary)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    static func summaryLine(periodTitle: String, summary: PeriodSummary) -> String {
         let percent: Int = Int((summary.successRate * 100).rounded())
         let noun: String = summary.count == 1 ? "build" : "builds"
         let label: String = periodTitle.prefix(1).uppercased() + periodTitle.dropFirst()
-        let text: String = "\(label): \(Format.duration(summary.totalDuration)) · \(summary.count) \(noun) · \(percent)% success"
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        return "\(label): \(Format.duration(summary.totalDuration)) · \(summary.count) \(noun) · \(percent)% success"
     }
 
     func clearDatabase() {

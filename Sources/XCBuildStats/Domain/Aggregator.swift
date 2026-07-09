@@ -151,6 +151,18 @@ enum Aggregator {
             .sorted { $0.start < $1.start }
     }
 
+    /// Fractional change in total build time for the period at `offset` versus the
+    /// immediately preceding period of the same granularity. `nil` when the previous
+    /// period has no builds to compare against.
+    static func previousPeriodDelta(_ builds: [BuildRecord], grouping: Grouping, now: Date, offset: Int, calendar: Calendar) -> Double? {
+        let current: PeriodSummary = summary(builds, in: periodInterval(grouping: grouping, now: now, offset: offset, calendar: calendar))
+        let previous: PeriodSummary = summary(builds, in: periodInterval(grouping: grouping, now: now, offset: offset - 1, calendar: calendar))
+        guard previous.count > 0, previous.totalDuration > 0 else {
+            return nil
+        }
+        return (current.totalDuration - previous.totalDuration) / previous.totalDuration
+    }
+
     static func projectStats(_ builds: [BuildRecord], in period: DateInterval) -> [ProjectStat] {
         var durations: [String: TimeInterval] = [:]
         var counts: [String: Int] = [:]
