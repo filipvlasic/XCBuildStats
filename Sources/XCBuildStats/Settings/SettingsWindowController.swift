@@ -15,10 +15,15 @@ final class SettingsWindowController {
             window.title = "XCBuildStats Settings"
             window.styleMask = [.titled, .closable]
             window.isReleasedWhenClosed = false
+            window.collectionBehavior = [.moveToActiveSpace]
+            window.center()
             self.window = window
         }
+        guard let window else {
+            return
+        }
         NSApp.activate(ignoringOtherApps: true)
-        window?.center()
-        window?.makeKeyAndOrderFront(nil)
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
     }
 }
