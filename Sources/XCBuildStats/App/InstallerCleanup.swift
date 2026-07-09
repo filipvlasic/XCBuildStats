@@ -7,6 +7,13 @@ enum InstallerCleanup {
     /// move its .dmg to the Trash. Shown at most once, and only when an installer
     /// disk image is actually mounted.
     static func offerIfNeeded() {
+        // Only meaningful once the app runs from a real location. When launched from
+        // the mounted DMG (directly, or via Gatekeeper's App Translocation copy),
+        // offering to eject/trash the installer would pull the app out from under
+        // itself — and consume the one-shot flag before the real install.
+        guard !AppLocation.isEphemeral else {
+            return
+        }
         let defaults: UserDefaults = .standard
         guard !defaults.bool(forKey: flagKey) else {
             return
