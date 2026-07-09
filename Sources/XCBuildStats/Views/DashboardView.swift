@@ -7,6 +7,7 @@ struct DashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var chartProgress: Double = 1
     @State private var hoveredBar: Bar?
+    @State private var copied: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -41,6 +42,7 @@ struct DashboardView: View {
                 Image(systemName: "gearshape")
             }
             .buttonStyle(.borderless)
+            .keyboardShortcut(",")
             .help("Settings")
         }
     }
@@ -102,11 +104,29 @@ struct DashboardView: View {
                 .monospacedDigit()
                 .contentTransition(.numericText())
                 .animation(animationsOff ? nil : .snappy, value: model.summary.totalDuration)
+            deltaBadge
             Spacer()
             Text("\(model.summary.count) \(model.summary.count == 1 ? "build" : "builds")  ·  avg \(Format.duration(model.summary.averageDuration))")
                 .font(.caption)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var deltaBadge: some View {
+        if let delta: Double = model.previousPeriodDelta {
+            let percent: Int = Int((abs(delta) * 100).rounded())
+            if percent >= 1 {
+                HStack(spacing: 1) {
+                    Image(systemName: delta >= 0 ? "arrow.up" : "arrow.down")
+                    Text("\(percent)%")
+                }
+                .font(.caption)
+                .monospacedDigit()
+                .foregroundStyle(delta > 0 ? Color.red : Color.green)
+                .help("vs previous period")
+            }
         }
     }
 
@@ -160,10 +180,10 @@ struct DashboardView: View {
     private var chartSection: some View {
         if model.summary.count == 0 {
             VStack(spacing: 8) {
-                Image(systemName: "chart.bar")
+                Image(systemName: model.hasAnyBuilds ? "chart.bar" : "hammer")
                     .font(.system(size: 28))
                     .foregroundStyle(.tertiary)
-                Text("No builds in this period.")
+                Text(model.hasAnyBuilds ? "No builds in this period." : "Build something in Xcode to get started.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -331,12 +351,29 @@ struct DashboardView: View {
     }
 
     private var footer: some View {
-        HStack {
+        HStack(spacing: 8) {
+            if model.hasAnyBuilds, let last: Date = model.lastBuildDate {
+                Text("Last build \(Format.relative(last, to: model.now))")
+                    .lineLimit(1)
+            }
             Spacer()
+            Button {
+                model.copySummary()
+                copied = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    copied = false
+                }
+            } label: {
+                Image(systemName: copied ? "checkmark" : "doc.on.doc")
+            }
+            .buttonStyle(.borderless)
+            .disabled(model.summary.count == 0)
+            .help("Copy summary to clipboard")
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }
             .buttonStyle(.borderless)
+            .keyboardShortcut("q")
         }
         .font(.caption)
         .foregroundStyle(.secondary)

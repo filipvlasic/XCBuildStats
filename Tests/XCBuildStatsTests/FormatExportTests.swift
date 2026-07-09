@@ -12,6 +12,15 @@ final class FormatExportTests: XCTestCase {
         XCTAssertEqual(Format.compact(3660), "1h1m")
     }
 
+    func testRelativeFormatting() {
+        let now: Date = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(Format.relative(now.addingTimeInterval(-30), to: now), "just now")
+        XCTAssertEqual(Format.relative(now.addingTimeInterval(-120), to: now), "2m ago")
+        XCTAssertEqual(Format.relative(now.addingTimeInterval(-7200), to: now), "2h ago")
+        XCTAssertEqual(Format.relative(now.addingTimeInterval(-172_800), to: now), "2d ago")
+        XCTAssertEqual(Format.relative(now.addingTimeInterval(60), to: now), "just now", "future dates must not crash")
+    }
+
     func testCSVEscaping() {
         let start: Date = Date(timeIntervalSince1970: 1_000_000)
         let build: BuildRecord = BuildRecord(

@@ -93,6 +93,26 @@ final class DashboardViewModel {
         return cleansOnly.count
     }
 
+    var hasAnyBuilds: Bool {
+        return !buildsOnly.isEmpty
+    }
+
+    var lastBuildDate: Date? {
+        return buildsOnly.map { $0.started }.max()
+    }
+
+    /// Percentage change in total build time for the shown period versus the
+    /// immediately preceding period of the same granularity. `nil` when the
+    /// previous period has no builds to compare against.
+    var previousPeriodDelta: Double? {
+        let previousPeriod: DateInterval = Aggregator.periodInterval(grouping: grouping, now: now, offset: periodOffset - 1, calendar: calendar)
+        let previous: PeriodSummary = Aggregator.summary(buildsOnly, in: previousPeriod)
+        guard previous.count > 0, previous.totalDuration > 0 else {
+            return nil
+        }
+        return (summary.totalDuration - previous.totalDuration) / previous.totalDuration
+    }
+
     var isCurrentPeriod: Bool {
         return periodOffset == 0
     }
@@ -141,7 +161,8 @@ final class DashboardViewModel {
         let text: String
         switch Preferences.shared.menuBarDisplay {
         case .currentPeriod:
-            text = Format.compact(summary.totalDuration)
+            let currentPeriod: DateInterval = Aggregator.periodInterval(grouping: grouping, now: now, offset: 0, calendar: calendar)
+            text = Format.compact(Aggregator.summary(buildsOnly, in: currentPeriod).totalDuration)
         case .todayTotal:
             let dayStart: Date = calendar.startOfDay(for: now)
             let duration: TimeInterval = buildsOnly
@@ -171,6 +192,15 @@ final class DashboardViewModel {
 
     func goToCurrent() {
         periodOffset = 0
+    }
+
+    func copySummary() {
+        let percent: Int = Int((summary.successRate * 100).rounded())
+        let noun: String = summary.count == 1 ? "build" : "builds"
+        let label: String = periodTitle.prefix(1).uppercased() + periodTitle.dropFirst()
+        let text: String = "\(label): \(Format.duration(summary.totalDuration)) · \(summary.count) \(noun) · \(percent)% success"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     func clearDatabase() {
