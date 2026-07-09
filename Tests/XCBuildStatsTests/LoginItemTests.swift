@@ -12,6 +12,20 @@ final class LoginItemTests: XCTestCase {
         XCTAssertFalse(LoginItem.shouldRegisterByDefault(status: .enabled, userDisabled: true))
     }
 
+    func testConsentGatedFolderDetection() {
+        let home: String = "/Users/me"
+        XCTAssertTrue(AppLocation.isConsentGated(path: "/Users/me/Documents/DerivedData", home: home))
+        XCTAssertTrue(AppLocation.isConsentGated(path: "/Users/me/Downloads/DD", home: home))
+        XCTAssertTrue(AppLocation.isConsentGated(path: "/Users/me/Desktop", home: home))
+        XCTAssertTrue(AppLocation.isConsentGated(path: "/Users/me/Library/Mobile Documents/com~apple~CloudDocs/DD", home: home), "iCloud Drive")
+        XCTAssertTrue(AppLocation.isConsentGated(path: "/Users/me/Library/CloudStorage/Dropbox/DD", home: home))
+        XCTAssertTrue(AppLocation.isConsentGated(path: "/Users/me/Projects/../Documents/DD", home: home), "path traversal must not bypass the check")
+
+        XCTAssertFalse(AppLocation.isConsentGated(path: "/Users/me/Library/Developer/Xcode/DerivedData", home: home))
+        XCTAssertFalse(AppLocation.isConsentGated(path: "/Users/me/DocumentsFoo/DD", home: home), "sibling folder with a gated prefix")
+        XCTAssertFalse(AppLocation.isConsentGated(path: "/Volumes/ExternalSSD/DerivedData", home: home), "external volumes stay honored — the OS prompt there is about the user's own chosen data location")
+    }
+
     func testEphemeralLocationDetection() {
         XCTAssertFalse(AppLocation.isEphemeral(bundlePath: "/Applications/XCBuildStats.app"))
         XCTAssertFalse(AppLocation.isEphemeral(bundlePath: "/Users/me/Applications/XCBuildStats.app"))

@@ -9,13 +9,20 @@ enum ManifestScanner {
         if let override: URL = overrideDerivedDataURL {
             return override
         }
-        if let custom: String = UserDefaults(suiteName: "com.apple.dt.Xcode")?.string(forKey: "IDECustomDerivedDataLocation"),
-           !custom.isEmpty {
-            let expanded: String = (custom as NSString).expandingTildeInPath
-            return URL(fileURLWithPath: expanded, isDirectory: true)
+        let home: URL = FileManager.default.homeDirectoryForCurrentUser
+        let defaultURL: URL = home.appendingPathComponent("Library/Developer/Xcode/DerivedData", isDirectory: true)
+        guard let custom: String = UserDefaults(suiteName: "com.apple.dt.Xcode")?.string(forKey: "IDECustomDerivedDataLocation"),
+              !custom.isEmpty else {
+            return defaultURL
         }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Developer/Xcode/DerivedData", isDirectory: true)
+        let expanded: String = (custom as NSString).expandingTildeInPath
+        // A relative value is Xcode's workspace-relative setting and cannot be
+        // resolved to one global folder; a consent-gated folder would make the
+        // launch scan show a macOS permission prompt. Both fall back to default.
+        guard expanded.hasPrefix("/"), !AppLocation.isConsentGated(path: expanded, home: home.path) else {
+            return defaultURL
+        }
+        return URL(fileURLWithPath: expanded, isDirectory: true)
     }
 
     static func manifestURLs() -> [URL] {
