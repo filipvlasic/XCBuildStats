@@ -4,7 +4,7 @@
 #
 # Notarized (recommended, "just works" for everyone) — needs a Developer ID cert:
 #   DEV_ID="Developer ID Application: Your Name (TEAMID)" ./scripts/release.sh
-#   (requires a one-time: xcrun notarytool store-credentials XCBS_NOTARY ... — see DISTRIBUTION.md)
+#   (requires a one-time: xcrun notarytool store-credentials XCBS_NOTARY ...)
 #
 # Unsigned stopgap (works today, but users must clear quarantine once):
 #   ./scripts/release.sh

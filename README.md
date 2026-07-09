@@ -80,19 +80,6 @@ aggregation and period boundaries (incl. midnight rollover), navigation limits,
 SQLite round-trip / dedup / clear, the DerivedData-deletion diff (with safeguards
 against false positives from transient reads), duration formatting, and CSV export.
 
-## Release
-
-Producing a signed, notarized `.dmg`:
-
-```sh
-DEV_ID="Developer ID Application: <Your Name> (TEAMID)" ./scripts/release.sh
-# → dist/XCBuildStats-<version>.dmg  (signed, notarized, stapled)
-```
-
-Run without `DEV_ID` to get an unsigned `.dmg` for local use. See
-[DISTRIBUTION.md](DISTRIBUTION.md) for the full setup (certificate, notarization
-credentials, publishing).
-
 ## Roadmap
 
 - [ ] Deep `.xcactivitylog` analysis: slowest files/targets, clean vs incremental builds
