@@ -5,6 +5,7 @@ import AppKit
 struct DashboardView: View {
     @Bindable var model: DashboardViewModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dismiss) private var dismiss
     @State private var chartProgress: Double = 1
     @State private var hoveredBar: Bar?
     @State private var copied: Bool = false
@@ -37,7 +38,12 @@ struct DashboardView: View {
             Text("XCBuildStats").font(.headline)
             Spacer()
             Button {
-                SettingsWindowController.shared.show(model: model)
+                // Close the popover first: it sits at status-window level and would
+                // otherwise cover the settings window and keep key focus.
+                dismiss()
+                DispatchQueue.main.async {
+                    SettingsWindowController.shared.show(model: model)
+                }
             } label: {
                 Image(systemName: "gearshape")
             }
