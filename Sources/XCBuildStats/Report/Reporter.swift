@@ -4,13 +4,13 @@ enum Reporter {
     static func runAndExit() -> Never {
         let store: BuildStore = BuildStore()
         let scanned: [BuildRecord] = ManifestScanner.scan()
-        let inserted: Int = store.ingest(scanned)
+        let inserted: [BuildRecord] = store.ingest(scanned)
         let all: [BuildRecord] = store.allBuilds()
 
         print("XCBuildStats")
         print("Database:    \(store.dbURL.path)")
         print("DerivedData: \(ManifestScanner.derivedDataURL.path)")
-        print("Manifests: \(scanned.count) build(s) · newly stored: \(inserted) · total in database: \(all.count)")
+        print("Manifests: \(scanned.count) build(s) · newly stored: \(inserted.count) · total in database: \(all.count)")
         print("")
 
         guard !all.isEmpty else {

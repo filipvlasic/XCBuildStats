@@ -28,8 +28,8 @@ final class BuildStoreTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
         let store: BuildStore = BuildStore(path: url.path)
 
-        XCTAssertEqual(store.ingest([record("a", 10), record("b", 20)]), 2)
-        XCTAssertEqual(store.ingest([record("a", 10), record("c", 30)]), 1, "duplicate id must be ignored")
+        XCTAssertEqual(store.ingest([record("a", 10), record("b", 20)]).map(\.id), ["a", "b"])
+        XCTAssertEqual(store.ingest([record("a", 10), record("c", 30)]).map(\.id), ["c"], "duplicate id must be ignored")
 
         let all: [BuildRecord] = store.allBuilds()
         XCTAssertEqual(all.count, 3)

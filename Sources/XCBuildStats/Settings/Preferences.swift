@@ -38,6 +38,28 @@ final class Preferences {
         }
     }
 
+    var notifyOnBuildEnd: Bool {
+        didSet {
+            defaults.set(notifyOnBuildEnd, forKey: Keys.notifyOnBuildEnd)
+        }
+    }
+
+    var notifyAllBuilds: Bool {
+        didSet {
+            defaults.set(notifyAllBuilds, forKey: Keys.notifyAllBuilds)
+        }
+    }
+
+    var notifyMinimumDuration: TimeInterval {
+        didSet {
+            defaults.set(notifyMinimumDuration, forKey: Keys.notifyMinimumDuration)
+        }
+    }
+
+    var effectiveNotifyThreshold: TimeInterval {
+        return notifyAllBuilds ? 0 : notifyMinimumDuration
+    }
+
     private let defaults: UserDefaults = .standard
 
     private enum Keys {
@@ -45,6 +67,9 @@ final class Preferences {
         static let excludedProjects: String = "excludedProjects"
         static let disableAnimations: String = "disableAnimations"
         static let pulseMenuBar: String = "pulseMenuBar"
+        static let notifyOnBuildEnd: String = "notifyOnBuildEnd"
+        static let notifyAllBuilds: String = "notifyAllBuilds"
+        static let notifyMinimumDuration: String = "notifyMinimumDuration"
     }
 
     private init() {
@@ -54,6 +79,18 @@ final class Preferences {
         excludedProjects = Set(excluded)
         disableAnimations = defaults.bool(forKey: Keys.disableAnimations)
         pulseMenuBar = defaults.bool(forKey: Keys.pulseMenuBar)
+        notifyOnBuildEnd = defaults.bool(forKey: Keys.notifyOnBuildEnd)
+        let storedDuration: Double = defaults.object(forKey: Keys.notifyMinimumDuration) as? Double ?? BuildNotifier.defaultThreshold
+        if storedDuration == 0 {
+            // Stored by the earlier picker UI where 0 meant "All builds".
+            notifyAllBuilds = true
+            notifyMinimumDuration = BuildNotifier.defaultThreshold
+            defaults.set(true, forKey: Keys.notifyAllBuilds)
+            defaults.set(BuildNotifier.defaultThreshold, forKey: Keys.notifyMinimumDuration)
+        } else {
+            notifyAllBuilds = defaults.bool(forKey: Keys.notifyAllBuilds)
+            notifyMinimumDuration = storedDuration
+        }
     }
 
     func isExcluded(_ project: String) -> Bool {

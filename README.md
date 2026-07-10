@@ -12,6 +12,8 @@ grouped by **day / week / month / year**, across **all** projects on your Mac.
 - 📊 **Per-project** breakdown, **longest build**, **clean** count, and **build success rate**.
 - 🖱️ **Hover** any bar for its exact time.
 - 🔔 **Menu bar** shows today's (or the selected period's) total at a glance.
+- 📣 **Build notifications** (opt-in) — get an alert when a build finishes, for all
+  builds or only ones longer than a threshold you pick (30 sec – 10 min).
 - 💾 **Own history** — keeps its data even after Xcode purges its logs.
 - ⚙️ **Settings** — launch at login, menu-bar display, per-project filter, CSV export, and more.
 
@@ -50,7 +52,8 @@ Gatekeeper warnings. **Launch at login is enabled automatically** on first run
 - Hover a bar to see its exact minutes.
 - **Settings (⚙︎):**
   - **General** — launch at login, what the menu bar shows (today / selected
-    period), disable animations.
+    period), animations, and build-finished notifications (all builds, or only
+    ones longer than a chosen duration).
   - **Projects** — include/exclude specific projects from the stats.
   - **Data** — app version, database path, reveal it in Finder, export to CSV,
     or clear the database.

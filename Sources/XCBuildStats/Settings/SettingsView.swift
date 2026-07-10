@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UserNotifications
 
 struct SettingsView: View {
     @Bindable var preferences: Preferences
@@ -7,6 +8,7 @@ struct SettingsView: View {
 
     @State private var launchAtLogin: Bool = LoginItem.isEnabled
     @State private var showClearConfirm: Bool = false
+    @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
 
     var body: some View {
         TabView {
@@ -23,7 +25,7 @@ struct SettingsView: View {
                     Label("Data", systemImage: "externaldrive")
                 }
         }
-        .frame(width: 440, height: 320)
+        .frame(width: 440, height: 400)
     }
 
     private var generalTab: some View {
@@ -47,10 +49,71 @@ struct SettingsView: View {
                     Text("Launch at login is available only in the packaged app (not via swift run).")
                 }
             }
+            Section {
+                Toggle("Notify when a build finishes", isOn: $preferences.notifyOnBuildEnd)
+                    .disabled(!BuildNotifier.isSupported)
+                    .onChange(of: preferences.notifyOnBuildEnd) { _, enabled in
+                        if enabled {
+                            BuildNotifier.requestAuthorization {
+                                refreshNotificationStatus()
+                            }
+                        }
+                    }
+                Toggle("All builds", isOn: $preferences.notifyAllBuilds)
+                    .toggleStyle(.checkbox)
+                    .disabled(!preferences.notifyOnBuildEnd)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Only builds longer than")
+                        Spacer()
+                        Text(BuildNotifier.thresholdLabel(preferences.notifyMinimumDuration))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    Slider(
+                        value: $preferences.notifyMinimumDuration,
+                        in: BuildNotifier.thresholdRange,
+                        step: BuildNotifier.thresholdStep
+                    ) {
+                        EmptyView()
+                    } minimumValueLabel: {
+                        Text("30 sec")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    } maximumValueLabel: {
+                        Text("10 min")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .disabled(!preferences.notifyOnBuildEnd || preferences.notifyAllBuilds)
+                .opacity(preferences.notifyOnBuildEnd && !preferences.notifyAllBuilds ? 1 : 0.4)
+            } footer: {
+                if !BuildNotifier.isSupported {
+                    Text("Notifications are available only in the packaged app (not via swift run).")
+                } else if preferences.notifyOnBuildEnd && notificationStatus == .denied {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Notifications for XCBuildStats are turned off in System Settings, so nothing will arrive.")
+                        Button("Open Notification Settings…") {
+                            BuildNotifier.openNotificationSettings()
+                        }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .onAppear {
             launchAtLogin = LoginItem.isEnabled
+            refreshNotificationStatus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            refreshNotificationStatus()
+        }
+    }
+
+    private func refreshNotificationStatus() {
+        BuildNotifier.authorizationStatus { status in
+            notificationStatus = status
         }
     }
 

@@ -62,10 +62,11 @@ final class BuildStore {
         """)
     }
 
+    /// Returns the records that were actually inserted (already-known ids are ignored).
     @discardableResult
-    func ingest(_ records: [BuildRecord]) -> Int {
+    func ingest(_ records: [BuildRecord]) -> [BuildRecord] {
         guard !records.isEmpty else {
-            return 0
+            return []
         }
         let sql: String = """
         INSERT OR IGNORE INTO builds
@@ -74,13 +75,13 @@ final class BuildStore {
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            return 0
+            return []
         }
         defer {
             sqlite3_finalize(statement)
         }
         exec("BEGIN TRANSACTION;")
-        var inserted: Int = 0
+        var inserted: [BuildRecord] = []
         for record in records {
             sqlite3_reset(statement)
             sqlite3_clear_bindings(statement)
@@ -95,8 +96,8 @@ final class BuildStore {
             sqlite3_bind_int(statement, 9, Int32(record.errors))
             sqlite3_bind_int(statement, 10, Int32(record.warnings))
             bindText(statement, 11, record.status)
-            if sqlite3_step(statement) == SQLITE_DONE {
-                inserted += Int(sqlite3_changes(db))
+            if sqlite3_step(statement) == SQLITE_DONE, sqlite3_changes(db) > 0 {
+                inserted.append(record)
             }
         }
         exec("COMMIT;")

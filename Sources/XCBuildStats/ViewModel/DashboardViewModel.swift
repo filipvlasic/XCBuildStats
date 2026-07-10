@@ -15,6 +15,11 @@ final class DashboardViewModel {
     private(set) var lastUpdated: Date?
     private(set) var now: Date = Date()
     private var knownFolders: Set<String> = []
+    // Notification dedup is deliberately independent of DB insertion: clearing the
+    // database (and re-ingesting the same manifests) or a concurrent `--report` run
+    // inserting a build first must not create duplicate or swallowed notifications.
+    private var seenBuildIds: Set<String> = []
+    private var hasSeededNotifications: Bool = false
 
     var grouping: Grouping = .day {
         didSet {
@@ -235,7 +240,27 @@ final class DashboardViewModel {
                 self.events = allEvents
                 self.now = Date()
                 self.lastUpdated = Date()
+                self.notifyIfNeeded(all)
             }
+        }
+    }
+
+    private func notifyIfNeeded(_ current: [BuildRecord]) {
+        let newBuilds: [BuildRecord] = current.filter { !seenBuildIds.contains($0.id) }
+        seenBuildIds.formUnion(newBuilds.map { $0.id })
+        // The first reload of a launch is backfill of history, never a fresh finish.
+        guard hasSeededNotifications else {
+            hasSeededNotifications = true
+            return
+        }
+        guard Preferences.shared.notifyOnBuildEnd else {
+            return
+        }
+        let excluded: Set<String> = Preferences.shared.excludedProjects
+        let threshold: TimeInterval = Preferences.shared.effectiveNotifyThreshold
+        for build in newBuilds
+        where !excluded.contains(build.project) && BuildNotifier.shouldNotify(build, threshold: threshold, now: Date()) {
+            BuildNotifier.notify(build)
         }
     }
 
