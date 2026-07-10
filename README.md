@@ -3,7 +3,10 @@
 A macOS menu bar app that tracks how much time you spend on local Xcode builds —
 grouped by **day / week / month / year**, across **all** projects on your Mac.
 
-<p align="center"><img src="docs/preview.png" width="420" alt="XCBuildStats dashboard"></p>
+<p align="center">
+  <img src="docs/preview.png" width="360" alt="XCBuildStats dashboard">
+  <img src="docs/settings.png" width="360" alt="XCBuildStats settings">
+</p>
 
 ## Features
 
