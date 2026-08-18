@@ -17,6 +17,8 @@ grouped by **day / week / month / year**, across **all** projects on your Mac.
 - 🔔 **Menu bar** shows today's (or the selected period's) total at a glance.
 - 📣 **Build notifications** (opt-in) — get an alert when a build finishes, for all
   builds or only ones longer than a threshold you pick (30 sec – 10 min).
+- 🧰 **Quick tools** — one-click delete DerivedData, reset Swift Package caches,
+  or force-quit Xcode, right from the dashboard (guarded while Xcode is running).
 - 💾 **Own history** — keeps its data even after Xcode purges its logs.
 - ⚙️ **Settings** — launch at login, menu-bar display, per-project filter, CSV export, and more.
 
@@ -56,6 +58,8 @@ Gatekeeper warnings. **Launch at login is enabled automatically** on first run
 - Switch **Day / Week / Month / Year**; use **‹ ›** to move between periods and
   **Current** to jump back to now.
 - Hover a bar to see its exact minutes.
+- Quick tools at the bottom: delete DerivedData, reset SPM caches, force-quit
+  Xcode — the cache tools ask you to quit Xcode first so its packages stay intact.
 - **Settings (⚙︎):**
   - **General** — launch at login, what the menu bar shows (today / selected
     period), animations, and build-finished notifications (all builds, or only
