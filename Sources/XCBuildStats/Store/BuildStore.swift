@@ -108,6 +108,31 @@ final class BuildStore {
         return inserted
     }
 
+    /// Re-applies the outcome to already-stored rows: a build first stored as
+    /// failed can turn out successful once its activity log is readable.
+    @discardableResult
+    func reconcileOutcomes(_ records: [BuildRecord]) -> Int {
+        let sql: String = "UPDATE builds SET succeeded = ?2 WHERE id = ?1 AND succeeded != ?2;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            return 0
+        }
+        defer {
+            sqlite3_finalize(statement)
+        }
+        var updated: Int = 0
+        for record in records {
+            sqlite3_reset(statement)
+            sqlite3_clear_bindings(statement)
+            bindText(statement, 1, record.id)
+            sqlite3_bind_int(statement, 2, record.succeeded ? 1 : 0)
+            if sqlite3_step(statement) == SQLITE_DONE {
+                updated += Int(sqlite3_changes(db))
+            }
+        }
+        return updated
+    }
+
     func allBuilds() -> [BuildRecord] {
         let sql: String = """
         SELECT id, project, scheme, title, started, stopped, succeeded, errors, warnings, status

@@ -5,6 +5,7 @@ enum Reporter {
         let store: BuildStore = BuildStore()
         let scanned: [BuildRecord] = ManifestScanner.scan()
         let inserted: [BuildRecord] = store.ingest(scanned)
+        store.reconcileOutcomes(scanned)
         let all: [BuildRecord] = store.allBuilds()
 
         print("XCBuildStats")

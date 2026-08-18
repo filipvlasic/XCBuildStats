@@ -40,6 +40,7 @@ final class FreshInstallTests: XCTestCase {
             "domainType": domain,
             "title": title,
             "uniqueIdentifier": id,
+            "fileName": "\(id).xcactivitylog",
             "timeStartedRecording": start.timeIntervalSinceReferenceDate,
             "timeStoppedRecording": start.timeIntervalSinceReferenceDate + durationSeconds,
             "schemeIdentifier-schemeName": "Scheme",
@@ -49,6 +50,21 @@ final class FreshInstallTests: XCTestCase {
                 "totalNumberOfWarnings": 0
             ]
         ]
+    }
+
+    private func writeActivityLog(project: String, hash: String = "abcdefghijklmnopqrstuvwxyzab", id: String, statusLine: String) throws {
+        let buildDir: URL = root.appendingPathComponent("\(project)-\(hash)/Logs/Build", isDirectory: true)
+        let plain: URL = buildDir.appendingPathComponent("\(id).plain")
+        try Data(#"0#---36"\#(UUID().uuidString)\#(statusLine)-0("#.utf8).write(to: plain)
+        let process: Process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/gzip")
+        process.arguments = ["-c", plain.path]
+        let pipe: Pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        let data: Data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        try data.write(to: buildDir.appendingPathComponent("\(id).xcactivitylog"))
     }
 
     private func writeManifest(project: String, hash: String = "abcdefghijklmnopqrstuvwxyzab", logs: [[String: Any]]) throws {
@@ -118,6 +134,34 @@ final class FreshInstallTests: XCTestCase {
         let bars: [Bar] = Aggregator.bars(builds, in: period, subComponent: .hour, calendar: calendar)
         XCTAssertEqual(bars.count, 3, "hours 09, 11, 14")
         XCTAssertEqual(bars.reduce(0) { $0 + $1.minutes }, 255.0 / 60.0, accuracy: 0.0001, "chart must sum to the same total as the headline")
+    }
+
+    func testLintErrorsDoNotFailACompletedBuild() throws {
+        try writeManifest(project: "Linty", logs: [
+            logEntry(id: "lint-ok", title: "Build Linty", start: date(2026, 7, 8, 9), durationSeconds: 60, status: "E", errors: 2),
+            logEntry(id: "real-fail", title: "Build Linty", start: date(2026, 7, 8, 10), durationSeconds: 30, status: "E", errors: 1)
+        ])
+        try writeActivityLog(project: "Linty", id: "lint-ok", statusLine: #"26"Build finished with errors"#)
+        try writeActivityLog(project: "Linty", id: "real-fail", statusLine: #"12"Build failed"#)
+        ManifestScanner.overrideDerivedDataURL = root
+
+        let scanned: [BuildRecord] = ManifestScanner.scan()
+        XCTAssertTrue(try XCTUnwrap(scanned.first { $0.id == "lint-ok" }).succeeded, "completed build with lint error diagnostics is a success")
+        XCTAssertFalse(try XCTUnwrap(scanned.first { $0.id == "real-fail" }).succeeded)
+
+        // A row stored as failed by an older version heals on the next scan.
+        let store: BuildStore = tempStore()
+        let asFailed: [BuildRecord] = scanned.map { record in
+            BuildRecord(
+                id: record.id, project: record.project, scheme: record.scheme, title: record.title,
+                started: record.started, stopped: record.stopped,
+                succeeded: false, errors: record.errors, warnings: record.warnings, status: record.status
+            )
+        }
+        store.ingest(asFailed)
+        XCTAssertEqual(store.reconcileOutcomes(scanned), 1, "only the lint build flips to succeeded")
+        XCTAssertEqual(store.allBuilds().first { $0.id == "lint-ok" }?.succeeded, true)
+        XCTAssertEqual(store.reconcileOutcomes(scanned), 0, "second pass is a no-op")
     }
 
     func testFreshUserWithoutDerivedData() {

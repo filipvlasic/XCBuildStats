@@ -232,6 +232,7 @@ final class DashboardViewModel {
             }
             let scanned: [BuildRecord] = ManifestScanner.scan()
             self.store.ingest(scanned)
+            self.store.reconcileOutcomes(scanned)
             self.detectDerivedDataDeletions()
             let all: [BuildRecord] = self.store.allBuilds()
             let allEvents: [BuildEvent] = self.store.allEvents()
