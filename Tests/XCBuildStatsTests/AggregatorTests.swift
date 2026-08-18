@@ -145,6 +145,62 @@ final class AggregatorTests: XCTestCase {
         XCTAssertTrue(Aggregator.canGoForward(from: past, now: now))
     }
 
+    func testSuccessPercentNeverContradictsCounts() {
+        func summary(count: Int, failed: Int) -> PeriodSummary {
+            return PeriodSummary(totalDuration: 0, count: count, failedCount: failed, failedDuration: 0)
+        }
+        XCTAssertEqual(summary(count: 200, failed: 1).successPercent, 99, "must not show 100% next to a failure")
+        XCTAssertEqual(summary(count: 200, failed: 199).successPercent, 1, "must not show 0% next to a success")
+        XCTAssertEqual(summary(count: 15, failed: 5).successPercent, 67)
+        XCTAssertEqual(summary(count: 10, failed: 0).successPercent, 100)
+        XCTAssertEqual(summary(count: 10, failed: 10).successPercent, 0)
+        XCTAssertEqual(summary(count: 0, failed: 0).successPercent, 0)
+    }
+
+    func testTimelineGroupsByPeriod() {
+        let builds: [BuildRecord] = [
+            build("A", date(2026, 7, 6, 9), seconds: 100),
+            build("A", date(2026, 7, 6, 15), seconds: 50),
+            build("B", date(2026, 7, 7, 9), seconds: 30)
+        ]
+        let rows: [TimelineRow] = Aggregator.timeline(builds, grouping: .day, calendar: calendar)
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows[0].start, date(2026, 7, 6))
+        XCTAssertEqual(rows[0].totalDuration, 150)
+        XCTAssertEqual(rows[0].count, 2)
+        XCTAssertEqual(rows[1].totalDuration, 30)
+    }
+
+    func testDSTTransitionDayStillSumsCorrectly() {
+        var zagreb: Calendar = Calendar(identifier: .gregorian)
+        zagreb.timeZone = TimeZone(identifier: "Europe/Zagreb")!
+        zagreb.firstWeekday = 2
+        // 2026-03-29: clocks jump forward in Europe, the day has 23 hours.
+        let anchor: Date = zagreb.date(from: DateComponents(year: 2026, month: 3, day: 29, hour: 12))!
+        let period: DateInterval = Aggregator.periodInterval(grouping: .day, anchor: anchor, calendar: zagreb)
+        XCTAssertEqual(period.duration, 23 * 3600, "DST-forward day is 23h")
+
+        let early: Date = zagreb.date(from: DateComponents(year: 2026, month: 3, day: 29, hour: 1))!
+        let late: Date = zagreb.date(from: DateComponents(year: 2026, month: 3, day: 29, hour: 20))!
+        let builds: [BuildRecord] = [build("A", early, seconds: 100), build("A", late, seconds: 50)]
+        XCTAssertEqual(Aggregator.summary(builds, in: period).totalDuration, 150)
+        let bars: [Bar] = Aggregator.bars(builds, in: period, subComponent: .hour, calendar: zagreb)
+        XCTAssertEqual(bars.reduce(0) { $0 + $1.minutes }, 150.0 / 60.0, accuracy: 0.0001)
+    }
+
+    func testWeekRespectsCalendarFirstWeekday() {
+        // Sunday Jul 5 2026. Monday-start week → previous week; Sunday-start → same week as Jul 6? No:
+        // with firstWeekday=2 the week containing Sunday ends that day; with firstWeekday=1 it starts that day.
+        let sunday: Date = date(2026, 7, 5, 12)
+        let mondayStart: DateInterval = Aggregator.periodInterval(grouping: .week, anchor: sunday, calendar: calendar)
+        XCTAssertEqual(mondayStart.start, date(2026, 6, 29), "Monday-start calendar: week of Jun 29 – Jul 5")
+
+        var sundayCalendar: Calendar = calendar
+        sundayCalendar.firstWeekday = 1
+        let sundayStart: DateInterval = Aggregator.periodInterval(grouping: .week, anchor: sunday, calendar: sundayCalendar)
+        XCTAssertEqual(sundayStart.start, date(2026, 7, 5), "Sunday-start calendar: week begins on the anchor Sunday")
+    }
+
     func testPreviousPeriodDeltaNilWithoutPreviousData() {
         let now: Date = date(2026, 7, 7, 12)
         let todayOnly: [BuildRecord] = [build("A", date(2026, 7, 7, 9), seconds: 100)]
