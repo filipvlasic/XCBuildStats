@@ -46,6 +46,9 @@ Gatekeeper warnings. **Launch at login is enabled automatically** on first run
   cleans and DerivedData wipes are only counted while the app is running.
 - **Privacy:** everything stays on your Mac. The app has no network calls and no
   telemetry.
+- **Known limitation:** Xcode's log store records a cancelled build with no
+  cancellation marker, so a build you stop midway counts as a (short) successful
+  build.
 
 ## Usage
 
