@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0205A546AF94EE6D2B16CCA0 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A2B07974BEB69890A5B694 /* SettingsWindowController.swift */; };
 		146D877A368905B2DF31C859 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 955D4C08C45F70F22CE4A5E6 /* Assets.xcassets */; };
+		178BE07DDC5D76F34DF84889 /* XcodeTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD40DF455CBB1A281ECA035B /* XcodeTools.swift */; };
 		1F3AB26F0D19BFC0416CE82B /* Aggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB084A308998206E2393014E /* Aggregator.swift */; };
 		2AF3FEC13BDF0E81875658BA /* DerivedDataWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8FDB642CB68555C33678E1 /* DerivedDataWatcher.swift */; };
 		2C5427F6DBD3DF486852CF9E /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 611A82359FD5CE32C59826CA /* Preferences.swift */; };
@@ -49,6 +50,7 @@
 		F64309C78BE50D00079FBC21 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		F776799190D0194994CC7C8A /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		FD0905469685285F3CC00F7C /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
+		FD40DF455CBB1A281ECA035B /* XcodeTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XcodeTools.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -114,6 +116,7 @@
 				2F6E989D512F9D3B8FE50B9C /* Report */,
 				D3FA883935958D8F38B52A4B /* Settings */,
 				CC454E57676C64B53E29433D /* Store */,
+				EC39DED910DE6CE98EC44106 /* Tools */,
 				8420BE3186EF06D2180403D3 /* ViewModel */,
 				2E2C73166EC2B0204C60EB51 /* Views */,
 				544CBF253EB40C682BB16B6D /* Watch */,
@@ -217,6 +220,14 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		EC39DED910DE6CE98EC44106 /* Tools */ = {
+			isa = PBXGroup;
+			children = (
+				FD40DF455CBB1A281ECA035B /* XcodeTools.swift */,
+			);
+			path = Tools;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -305,6 +316,7 @@
 				C9E92B484475D8FD0635507A /* SettingsView.swift in Sources */,
 				0205A546AF94EE6D2B16CCA0 /* SettingsWindowController.swift in Sources */,
 				9CD232CD8218E21ACEA061BE /* XCBuildStatsApp.swift in Sources */,
+				178BE07DDC5D76F34DF84889 /* XcodeTools.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

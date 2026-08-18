@@ -9,6 +9,21 @@ struct DashboardView: View {
     @State private var chartProgress: Double = 1
     @State private var hoveredBar: Bar?
     @State private var copied: Bool = false
+    @State private var toolPhases: [ToolAction: ToolPhase] = [:]
+    @State private var toolWarning: String?
+    @State private var toolWarningToken: Int = 0
+
+    enum ToolAction: Hashable {
+        case derivedData
+        case spmCache
+        case quitXcode
+    }
+
+    enum ToolPhase: Equatable {
+        case working
+        case done
+        case failed(String)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -22,6 +37,7 @@ struct DashboardView: View {
             chartSection
             projectSection
             Divider()
+            toolsRow
             footer
         }
         .padding(14)
@@ -353,6 +369,111 @@ struct DashboardView: View {
                     .font(.callout)
                 }
             }
+        }
+    }
+
+    private var toolsRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                toolButton(
+                    .derivedData, title: "DerivedData", icon: "trash",
+                    help: "Delete all of DerivedData", failure: "Already empty",
+                    requiresXcodeClosed: true
+                ) {
+                    XcodeTools.deleteDerivedDataContents()
+                }
+                toolButton(
+                    .spmCache, title: "SPM Cache", icon: "shippingbox",
+                    help: "Reset Swift Package caches", failure: "Nothing to delete",
+                    requiresXcodeClosed: true
+                ) {
+                    XcodeTools.resetPackageCaches()
+                }
+                toolButton(
+                    .quitXcode, title: "Quit Xcode", icon: "power",
+                    help: "Force quit Xcode", failure: "Not running"
+                ) {
+                    XcodeTools.forceQuitXcode()
+                }
+                Spacer()
+            }
+            // Reserved line so the popover height never jumps when it appears.
+            Text(toolWarning ?? " ")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .opacity(toolWarning == nil ? 0 : 1)
+        }
+    }
+
+    private func showToolWarning(_ text: String) {
+        toolWarningToken += 1
+        let token: Int = toolWarningToken
+        withAnimation(animationsOff ? nil : .easeInOut(duration: 0.15)) {
+            toolWarning = text
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            guard token == toolWarningToken else {
+                return
+            }
+            withAnimation(animationsOff ? nil : .easeInOut(duration: 0.3)) {
+                toolWarning = nil
+            }
+        }
+    }
+
+    private func toolButton(
+        _ action: ToolAction,
+        title: String,
+        icon: String,
+        help: String,
+        failure: String,
+        requiresXcodeClosed: Bool = false,
+        run: @escaping () -> Bool
+    ) -> some View {
+        let phase: ToolPhase? = toolPhases[action]
+        let symbol: String
+        var text: String = title
+        switch phase {
+        case .working:
+            symbol = "hourglass"
+        case .done:
+            symbol = "checkmark"
+        case .failed(let message):
+            symbol = "xmark"
+            text = message
+        case nil:
+            symbol = icon
+        }
+        return Button {
+            // Deleting caches under a live Xcode leaves its package graph broken
+            // (binary artifacts are not re-fetched) — refuse and say why.
+            if requiresXcodeClosed && XcodeTools.isXcodeRunning {
+                showToolWarning("Quit Xcode first — its open packages would break.")
+                return
+            }
+            toolPhases[action] = .working
+            DispatchQueue.global(qos: .userInitiated).async {
+                let succeeded: Bool = run()
+                DispatchQueue.main.async {
+                    finishTool(action, phase: succeeded ? .done : .failed(failure))
+                }
+            }
+        } label: {
+            Label(text, systemImage: symbol)
+                .foregroundStyle(phase == .done ? Color.green : (symbol == "xmark" ? Color.red : Color.primary))
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .font(.caption)
+        .disabled(phase == .working)
+        .help(help)
+    }
+
+    private func finishTool(_ action: ToolAction, phase: ToolPhase) {
+        toolPhases[action] = phase
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+            toolPhases[action] = nil
         }
     }
 
