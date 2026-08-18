@@ -8,7 +8,6 @@ struct DashboardView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var chartProgress: Double = 1
     @State private var hoveredBar: Bar?
-    @State private var copied: Bool = false
     @State private var toolPhases: [ToolAction: ToolPhase] = [:]
     @State private var toolWarning: String?
     @State private var toolWarningToken: Int = 0
@@ -484,18 +483,6 @@ struct DashboardView: View {
                     .lineLimit(1)
             }
             Spacer()
-            Button {
-                model.copySummary()
-                copied = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    copied = false
-                }
-            } label: {
-                Image(systemName: copied ? "checkmark" : "doc.on.doc")
-            }
-            .buttonStyle(.borderless)
-            .disabled(model.summary.count == 0)
-            .help("Copy summary to clipboard")
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
             }

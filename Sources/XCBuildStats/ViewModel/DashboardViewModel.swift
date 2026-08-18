@@ -191,19 +191,6 @@ final class DashboardViewModel {
         periodOffset = 0
     }
 
-    func copySummary() {
-        let text: String = Self.summaryLine(periodTitle: periodTitle, summary: summary)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-    }
-
-    static func summaryLine(periodTitle: String, summary: PeriodSummary) -> String {
-        let percent: Int = summary.successPercent
-        let noun: String = summary.count == 1 ? "build" : "builds"
-        let label: String = periodTitle.prefix(1).uppercased() + periodTitle.dropFirst()
-        return "\(label): \(Format.duration(summary.totalDuration)) · \(summary.count) \(noun) · \(percent)% success"
-    }
-
     func clearDatabase() {
         ioQueue.async { [weak self] in
             guard let self else {

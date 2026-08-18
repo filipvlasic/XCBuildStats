@@ -21,19 +21,6 @@ final class FormatExportTests: XCTestCase {
         XCTAssertEqual(Format.relative(now.addingTimeInterval(60), to: now), "just now", "future dates must not crash")
     }
 
-    func testSummaryLine() {
-        let week: PeriodSummary = PeriodSummary(totalDuration: 4620, count: 62, failedCount: 19, failedDuration: 600)
-        XCTAssertEqual(
-            DashboardViewModel.summaryLine(periodTitle: "this week", summary: week),
-            "This week: 1h 17m · 62 builds · 69% success"
-        )
-        let single: PeriodSummary = PeriodSummary(totalDuration: 45, count: 1, failedCount: 0, failedDuration: 0)
-        XCTAssertEqual(
-            DashboardViewModel.summaryLine(periodTitle: "today", summary: single),
-            "Today: 45s · 1 build · 100% success"
-        )
-    }
-
     func testCSVEscaping() {
         let start: Date = Date(timeIntervalSince1970: 1_000_000)
         let build: BuildRecord = BuildRecord(
