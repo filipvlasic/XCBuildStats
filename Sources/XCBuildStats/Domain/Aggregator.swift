@@ -83,6 +83,22 @@ struct PeriodSummary {
         }
         return Double(successCount) / Double(count)
     }
+
+    /// Rounded percentage clamped so it never contradicts the counts next to it:
+    /// with any failure it cannot display 100%, with any success it cannot display 0%.
+    var successPercent: Int {
+        guard count > 0 else {
+            return 0
+        }
+        var percent: Int = Int((successRate * 100).rounded())
+        if failedCount > 0 {
+            percent = min(percent, 99)
+        }
+        if successCount > 0 {
+            percent = max(percent, 1)
+        }
+        return percent
+    }
 }
 
 struct ProjectStat: Identifiable {

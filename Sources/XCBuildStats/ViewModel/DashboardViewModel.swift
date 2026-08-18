@@ -198,7 +198,7 @@ final class DashboardViewModel {
     }
 
     static func summaryLine(periodTitle: String, summary: PeriodSummary) -> String {
-        let percent: Int = Int((summary.successRate * 100).rounded())
+        let percent: Int = summary.successPercent
         let noun: String = summary.count == 1 ? "build" : "builds"
         let label: String = periodTitle.prefix(1).uppercased() + periodTitle.dropFirst()
         return "\(label): \(Format.duration(summary.totalDuration)) · \(summary.count) \(noun) · \(percent)% success"
@@ -265,18 +265,29 @@ final class DashboardViewModel {
     }
 
     private func detectDerivedDataDeletions() {
-        guard let current: Set<String> = ManifestScanner.projectFolderNames() else {
-            return
-        }
-        // A single empty read (transient FS glitch during heavy Xcode churn) must not
-        // be misread as "everything was deleted"; require a subsequent good read to resync.
-        if current.isEmpty && !knownFolders.isEmpty {
-            return
-        }
+        let current: Set<String> = confirmedProjectFolders()
         for event in ManifestScanner.deletionEvents(previous: knownFolders, current: current, at: Date()) {
             store.insertEvent(event)
         }
         knownFolders = current
+    }
+
+    /// A single empty/unreadable read (transient FS glitch during heavy Xcode churn)
+    /// must not be misread as "everything was deleted" — but a real full wipe must
+    /// still be recorded, so a suspicious read is confirmed by re-reading.
+    private func confirmedProjectFolders() -> Set<String> {
+        var read: Set<String> = ManifestScanner.projectFolderNames() ?? []
+        guard read.isEmpty, !knownFolders.isEmpty else {
+            return read
+        }
+        for _ in 0..<2 {
+            Thread.sleep(forTimeInterval: 0.25)
+            read = ManifestScanner.projectFolderNames() ?? []
+            if !read.isEmpty {
+                return read
+            }
+        }
+        return read
     }
 
     private func startWatching() {

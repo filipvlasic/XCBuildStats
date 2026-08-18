@@ -32,9 +32,16 @@ enum Reporter {
             print("Clean actions: \(cleans.count) · total \(Format.duration(cleanTotal))")
         }
         if !builds.isEmpty {
-            let failedCount: Int = builds.filter { !$0.succeeded }.count
-            let percent: Int = Int((Double(builds.count - failedCount) / Double(builds.count) * 100).rounded())
-            print("Build success: \(builds.count - failedCount) of \(builds.count) succeeded (\(failedCount) failed, \(percent)%)")
+            let failed: [BuildRecord] = builds.filter { !$0.succeeded }
+            let failedDuration: TimeInterval = failed.reduce(0) { $0 + $1.duration }
+            let total: TimeInterval = builds.reduce(0) { $0 + $1.duration }
+            let summary: PeriodSummary = PeriodSummary(
+                totalDuration: total,
+                count: builds.count,
+                failedCount: failed.count,
+                failedDuration: failedDuration
+            )
+            print("Build success: \(summary.successCount) of \(summary.count) succeeded (\(summary.failedCount) failed, \(summary.successPercent)%)")
         }
         print("")
 

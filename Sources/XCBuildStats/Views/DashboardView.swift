@@ -167,7 +167,7 @@ struct DashboardView: View {
     private var failuresRow: some View {
         let summary: PeriodSummary = model.summary
         if summary.count > 0 {
-            let percent: Int = Int((summary.successRate * 100).rounded())
+            let percent: Int = summary.successPercent
             HStack(spacing: 4) {
                 Image(systemName: summary.failedCount == 0 ? "checkmark.circle" : "xmark.circle")
                 Text("Failed: \(summary.failedCount) of \(summary.count)")

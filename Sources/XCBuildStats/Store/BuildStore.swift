@@ -34,6 +34,10 @@ final class BuildStore {
         if sqlite3_open_v2(dbURL.path, &db, flags, nil) != SQLITE_OK {
             NSLog("XCBuildStats: cannot open database at \(dbURL.path)")
         }
+        // The GUI app and a concurrent `--report` run share this file; without a
+        // busy timeout a locked moment silently reads zero rows / drops writes.
+        sqlite3_busy_timeout(db, 2000)
+        exec("PRAGMA journal_mode=WAL;")
     }
 
     private func createSchema() {
