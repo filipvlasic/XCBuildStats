@@ -11,11 +11,13 @@ struct DashboardView: View {
     @State private var toolPhases: [ToolAction: ToolPhase] = [:]
     @State private var toolWarning: String?
     @State private var toolWarningToken: Int = 0
+    @State private var xcodeRunning: Bool = XcodeTools.isXcodeRunning
 
     enum ToolAction: Hashable {
         case derivedData
         case spmCache
-        case quitXcode
+        case xcode
+        case cleanRestart
     }
 
     enum ToolPhase: Equatable {
@@ -41,6 +43,23 @@ struct DashboardView: View {
         }
         .padding(14)
         .frame(width: 380)
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { note in
+            refreshXcodeRunning(note)
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { note in
+            refreshXcodeRunning(note)
+        }
+        .onAppear {
+            xcodeRunning = XcodeTools.isXcodeRunning
+        }
+    }
+
+    private func refreshXcodeRunning(_ note: Notification) {
+        guard let app: NSRunningApplication = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              app.bundleIdentifier == XcodeTools.xcodeBundleId else {
+            return
+        }
+        xcodeRunning = XcodeTools.isXcodeRunning
     }
 
     private var animationsOff: Bool {
@@ -372,7 +391,7 @@ struct DashboardView: View {
     }
 
     private var toolsRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 toolButton(
                     .derivedData, title: "DerivedData", icon: "trash",
@@ -388,13 +407,29 @@ struct DashboardView: View {
                 ) {
                     XcodeTools.resetPackageCaches()
                 }
-                toolButton(
-                    .quitXcode, title: "Quit Xcode", icon: "power",
-                    help: "Force quit Xcode", failure: "Not running"
-                ) {
-                    XcodeTools.forceQuitXcode()
+            }
+            HStack(spacing: 8) {
+                if xcodeRunning {
+                    toolButton(
+                        .xcode, title: "Quit Xcode", icon: "power",
+                        help: "Force quit Xcode", failure: "Not running"
+                    ) {
+                        XcodeTools.forceQuitXcode()
+                    }
+                } else {
+                    toolButton(
+                        .xcode, title: "Launch Xcode", icon: "play",
+                        help: "Launch the last-used Xcode", failure: "Xcode not found"
+                    ) {
+                        XcodeTools.launchXcode()
+                    }
                 }
-                Spacer()
+                toolButton(
+                    .cleanRestart, title: "Clean restart", icon: "arrow.triangle.2.circlepath",
+                    help: "Quit Xcode, delete DerivedData, and relaunch the same Xcode", failure: "Launch failed"
+                ) {
+                    XcodeTools.cleanRestart()
+                }
             }
             // Reserved line so the popover height never jumps when it appears.
             Text(toolWarning ?? " ")
@@ -461,6 +496,7 @@ struct DashboardView: View {
         } label: {
             Label(text, systemImage: symbol)
                 .foregroundStyle(phase == .done ? Color.green : (symbol == "xmark" ? Color.red : Color.primary))
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)

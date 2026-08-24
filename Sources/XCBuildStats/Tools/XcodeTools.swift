@@ -81,10 +81,82 @@ enum XcodeTools {
         guard !running.isEmpty else {
             return false
         }
+        // Remember which Xcode this was, so Launch/Clean restart reopens the
+        // same version on machines with several Xcodes installed.
+        if let path: String = running.first?.bundleURL?.path {
+            UserDefaults.standard.set(path, forKey: lastXcodeKey)
+        }
         var quit: Bool = false
         for app in running where app.forceTerminate() {
             quit = true
         }
         return quit
     }
+
+    /// Preference order: the Xcode we last quit → the `xcode-select`ed Xcode →
+    /// the system default for Xcode's bundle id.
+    static func xcodeAppURL() -> URL? {
+        let remembered: String? = UserDefaults.standard.string(forKey: lastXcodeKey)
+        let developerDir: String? = try? FileManager.default.destinationOfSymbolicLink(atPath: "/var/db/xcode_select_link")
+        if let path: String = resolveXcodeAppPath(remembered: remembered, developerDir: developerDir, exists: { FileManager.default.fileExists(atPath: $0) }) {
+            return URL(fileURLWithPath: path)
+        }
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: xcodeBundleId)
+    }
+
+    static func resolveXcodeAppPath(remembered: String?, developerDir: String?, exists: (String) -> Bool) -> String? {
+        if let remembered, exists(remembered) {
+            return remembered
+        }
+        // "/Applications/Xcode26_0.app/Contents/Developer" → "/Applications/Xcode26_0.app";
+        // a CommandLineTools selection has no ".app" and falls through.
+        if let developerDir, let range = developerDir.range(of: ".app/") {
+            let appPath: String = String(developerDir[..<range.lowerBound]) + ".app"
+            if exists(appPath) {
+                return appPath
+            }
+        }
+        return nil
+    }
+
+    @discardableResult
+    static func launchXcode() -> Bool {
+        guard let url: URL = xcodeAppURL() else {
+            return false
+        }
+        let semaphore: DispatchSemaphore = DispatchSemaphore(value: 0)
+        var launched: Bool = false
+        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration()) { application, _ in
+            launched = application != nil
+            semaphore.signal()
+        }
+        _ = semaphore.wait(timeout: .now() + 15)
+        return launched
+    }
+
+    /// The whole ritual in one go: quit Xcode, wipe DerivedData, relaunch the
+    /// same Xcode (which restores the last open workspace itself).
+    @discardableResult
+    static func cleanRestart() -> Bool {
+        if isXcodeRunning {
+            guard forceQuitXcode(), waitForXcodeTermination() else {
+                return false
+            }
+        }
+        deleteDerivedDataContents()
+        return launchXcode()
+    }
+
+    static func waitForXcodeTermination(timeout: TimeInterval = 10) -> Bool {
+        let deadline: Date = Date().addingTimeInterval(timeout)
+        while isXcodeRunning {
+            guard Date() < deadline else {
+                return false
+            }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        return true
+    }
+
+    private static let lastXcodeKey: String = "lastXcodeAppPath"
 }

@@ -46,6 +46,27 @@ final class XcodeToolsTests: XCTestCase {
         XCTAssertFalse(XcodeTools.resetPackageCaches(cache: cache, derivedData: derivedData), "already gone → nothing to reset")
     }
 
+    func testResolveXcodeAppPathPrefersRememberedVersion() {
+        let disk: Set<String> = ["/Applications/Xcode-beta.app", "/Applications/Xcode26_0.app"]
+        let exists: (String) -> Bool = { disk.contains($0) }
+
+        XCTAssertEqual(
+            XcodeTools.resolveXcodeAppPath(remembered: "/Applications/Xcode-beta.app", developerDir: "/Applications/Xcode26_0.app/Contents/Developer", exists: exists),
+            "/Applications/Xcode-beta.app",
+            "the Xcode we last quit wins over xcode-select"
+        )
+        XCTAssertEqual(
+            XcodeTools.resolveXcodeAppPath(remembered: "/Applications/Deleted.app", developerDir: "/Applications/Xcode26_0.app/Contents/Developer", exists: exists),
+            "/Applications/Xcode26_0.app",
+            "a remembered Xcode that was deleted falls back to xcode-select"
+        )
+        XCTAssertNil(
+            XcodeTools.resolveXcodeAppPath(remembered: nil, developerDir: "/Library/Developer/CommandLineTools", exists: exists),
+            "CommandLineTools selection is not an app → defer to Launch Services"
+        )
+        XCTAssertNil(XcodeTools.resolveXcodeAppPath(remembered: nil, developerDir: nil, exists: exists))
+    }
+
     func testResetPackageCachesWithoutDerivedData() {
         XCTAssertFalse(XcodeTools.resetPackageCaches(
             cache: root.appendingPathComponent("missing-cache"),
