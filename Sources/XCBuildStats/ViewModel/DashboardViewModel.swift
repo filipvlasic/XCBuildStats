@@ -8,6 +8,7 @@ final class DashboardViewModel {
     private let ioQueue: DispatchQueue = DispatchQueue(label: "com.filipvlasic.xcbuildstats.io")
     private let calendar: Calendar = .current
     private var watcher: DerivedDataWatcher?
+    private var xcodebuildMonitor: XcodebuildMonitor?
     private var clockTimer: Timer?
 
     private(set) var builds: [BuildRecord] = []
@@ -28,9 +29,19 @@ final class DashboardViewModel {
     }
     var periodOffset: Int = 0
 
+    var sourceFilter: SourceFilter {
+        get {
+            return Preferences.shared.sourceFilter
+        }
+        set {
+            Preferences.shared.sourceFilter = newValue
+        }
+    }
+
     init() {
         reload()
         startWatching()
+        setCommandLineTracking(Preferences.shared.trackCommandLineBuilds)
         startClock()
     }
 
@@ -50,9 +61,19 @@ final class DashboardViewModel {
         return Aggregator.projectStats(buildsOnly, in: period)
     }
 
+    /// Each source's share of the chart bars; drawn stacked when showing all sources.
+    var sourceBars: [SourceBar] {
+        return Aggregator.sourceBars(buildsOnly, in: period, subComponent: grouping.subComponent, calendar: calendar)
+    }
+
+    var sourceStats: [SourceStat] {
+        return Aggregator.sourceStats(buildsOnly, in: period)
+    }
+
     private var included: [BuildRecord] {
         let excluded: Set<String> = Preferences.shared.excludedProjects
-        return builds.filter { !excluded.contains($0.project) }
+        let filter: SourceFilter = sourceFilter
+        return builds.filter { !excluded.contains($0.project) && filter.includes($0.source) }
     }
 
     private var buildsOnly: [BuildRecord] {
@@ -212,6 +233,32 @@ final class DashboardViewModel {
         Exporter.exportCSV(builds: builds)
     }
 
+    func setCommandLineTracking(_ enabled: Bool) {
+        guard enabled else {
+            xcodebuildMonitor?.stop()
+            xcodebuildMonitor = nil
+            return
+        }
+        guard xcodebuildMonitor == nil else {
+            return
+        }
+        let monitor: XcodebuildMonitor = XcodebuildMonitor { [weak self] run in
+            self?.ingest(run)
+        }
+        monitor.start()
+        xcodebuildMonitor = monitor
+    }
+
+    private func ingest(_ run: XcodebuildRun) {
+        ioQueue.async { [weak self] in
+            guard let self else {
+                return
+            }
+            self.store.ingest(run.buildRecords())
+            self.reload()
+        }
+    }
+
     func reload() {
         ioQueue.async { [weak self] in
             guard let self else {
@@ -246,8 +293,11 @@ final class DashboardViewModel {
         }
         let excluded: Set<String> = Preferences.shared.excludedProjects
         let threshold: TimeInterval = Preferences.shared.effectiveNotifyThreshold
+        // Only builds someone sat waiting for in Xcode; an agent's builds would
+        // otherwise post a stream of alerts.
         for build in newBuilds
-        where !excluded.contains(build.project) && BuildNotifier.shouldNotify(build, threshold: threshold, now: Date()) {
+        where build.source == .xcode && !excluded.contains(build.project)
+            && BuildNotifier.shouldNotify(build, threshold: threshold, now: Date()) {
             BuildNotifier.notify(build)
         }
     }

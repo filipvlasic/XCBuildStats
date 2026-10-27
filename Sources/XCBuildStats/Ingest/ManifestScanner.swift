@@ -30,8 +30,11 @@ enum ManifestScanner {
     }
 
     static func manifestURLs() -> [URL] {
+        return manifestURLs(in: derivedDataURL)
+    }
+
+    static func manifestURLs(in root: URL) -> [URL] {
         let fileManager: FileManager = .default
-        let root: URL = derivedDataURL
         guard let entries: [URL] = try? fileManager.contentsOfDirectory(
             at: root,
             includingPropertiesForKeys: [.isDirectoryKey],
@@ -43,6 +46,17 @@ enum ManifestScanner {
             let manifest: URL = directory.appendingPathComponent("Logs/Build/LogStoreManifest.plist")
             return fileManager.fileExists(atPath: manifest.path) ? manifest : nil
         }
+    }
+
+    /// The workspace or project a DerivedData folder belongs to, from the
+    /// info.plist Xcode keeps next to its logs.
+    static func workspacePath(ofDerivedDataFolder folder: URL) -> String? {
+        let url: URL = folder.appendingPathComponent("info.plist")
+        guard let data: Data = try? Data(contentsOf: url),
+              let plist: [String: Any] = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else {
+            return nil
+        }
+        return plist["WorkspacePath"] as? String
     }
 
     static func projectFolderNames() -> Set<String>? {
@@ -65,48 +79,51 @@ enum ManifestScanner {
     }
 
     static func scan() -> [BuildRecord] {
+        return manifestURLs().flatMap { url in
+            records(inManifestAt: url, project: projectName(from: url))
+        }
+    }
+
+    static func records(inManifestAt url: URL, project: String) -> [BuildRecord] {
+        guard let data: Data = try? Data(contentsOf: url),
+              let manifest: LogStoreManifest = try? PropertyListDecoder().decode(LogStoreManifest.self, from: data) else {
+            return []
+        }
         var records: [BuildRecord] = []
-        let decoder: PropertyListDecoder = PropertyListDecoder()
-        for url in manifestURLs() {
-            guard let data: Data = try? Data(contentsOf: url),
-                  let manifest: LogStoreManifest = try? decoder.decode(LogStoreManifest.self, from: data) else {
+        for (_, log) in manifest.logs {
+            guard log.domainType == buildLogDomain,
+                  let id: String = log.uniqueIdentifier,
+                  let start: Double = log.timeStartedRecording,
+                  let stop: Double = log.timeStoppedRecording,
+                  stop >= start else {
                 continue
             }
-            let project: String = projectName(from: url)
-            for (_, log) in manifest.logs {
-                guard log.domainType == buildLogDomain,
-                      let id: String = log.uniqueIdentifier,
-                      let start: Double = log.timeStartedRecording,
-                      let stop: Double = log.timeStoppedRecording,
-                      stop >= start else {
-                    continue
+            let errors: Int = log.primaryObservable?.totalNumberOfErrors ?? 0
+            let status: String? = log.primaryObservable?.highLevelStatus
+            var succeeded: Bool = errors == 0 && status != "E"
+            // Lint/script phases can emit error-level diagnostics without
+            // failing the build; the manifest counters can't tell those
+            // apart, but the activity log records the real outcome.
+            if !succeeded, let fileName: String = log.fileName {
+                let logURL: URL = url.deletingLastPathComponent().appendingPathComponent(fileName)
+                if let realOutcome: Bool = activityLogResult(id: id, at: logURL) {
+                    succeeded = realOutcome
                 }
-                let errors: Int = log.primaryObservable?.totalNumberOfErrors ?? 0
-                let status: String? = log.primaryObservable?.highLevelStatus
-                var succeeded: Bool = errors == 0 && status != "E"
-                // Lint/script phases can emit error-level diagnostics without
-                // failing the build; the manifest counters can't tell those
-                // apart, but the activity log records the real outcome.
-                if !succeeded, let fileName: String = log.fileName {
-                    let logURL: URL = url.deletingLastPathComponent().appendingPathComponent(fileName)
-                    if let realOutcome: Bool = activityLogResult(id: id, at: logURL) {
-                        succeeded = realOutcome
-                    }
-                }
-                let record: BuildRecord = BuildRecord(
-                    id: id,
-                    project: project,
-                    scheme: log.schemeName,
-                    title: log.title,
-                    started: Date(timeIntervalSinceReferenceDate: start),
-                    stopped: Date(timeIntervalSinceReferenceDate: stop),
-                    succeeded: succeeded,
-                    errors: errors,
-                    warnings: log.primaryObservable?.totalNumberOfWarnings ?? 0,
-                    status: status
-                )
-                records.append(record)
             }
+            let record: BuildRecord = BuildRecord(
+                id: id,
+                project: project,
+                scheme: log.schemeName,
+                title: log.title,
+                started: Date(timeIntervalSinceReferenceDate: start),
+                stopped: Date(timeIntervalSinceReferenceDate: stop),
+                succeeded: succeeded,
+                errors: errors,
+                warnings: log.primaryObservable?.totalNumberOfWarnings ?? 0,
+                status: status,
+                source: BuildSource.from(className: log.className, title: log.title)
+            )
+            records.append(record)
         }
         return records
     }

@@ -1,7 +1,8 @@
 # XCBuildStats
 
 A macOS menu bar app that tracks how much time you spend on local Xcode builds —
-grouped by **day / week / month / year**, across **all** projects on your Mac.
+grouped by **day / week / month / year**, across **all** projects on your Mac —
+including command-line `xcodebuild` runs by AI agents such as Claude Code.
 
 <p align="center">
   <img src="docs/preview.png" width="360" alt="XCBuildStats dashboard">
@@ -13,6 +14,9 @@ grouped by **day / week / month / year**, across **all** projects on your Mac.
 - ⏱️ **Build time** per day / week / month / year, with a per-hour/day/month bar chart.
 - 🧭 **Navigate** periods with ‹ › and jump back with **Current**.
 - 📊 **Per-project** breakdown, **longest build**, **clean** count, and **build success rate**.
+- 🤖 **Xcode vs CLI** — builds run with `xcodebuild` outside Xcode (Claude Code and
+  other agents in their own worktrees, scripts, Terminal) are tracked too. Switch the
+  dashboard between **All** (default, stacked by source), **Xcode** and **CLI**.
 - 🖱️ **Hover** any bar for its exact time.
 - 🔔 **Menu bar** shows today's (or the selected period's) total at a glance.
 - 📣 **Build notifications** (opt-in) — get an alert when a build finishes, for all
@@ -49,6 +53,14 @@ Gatekeeper warnings. **Launch at login is enabled automatically** on first run
   cleans and DerivedData wipes are only counted while the app is running.
 - **Privacy:** everything stays on your Mac. The app has no network calls and no
   telemetry.
+- **Command-line builds:** `xcodebuild` writes its build log only for `test` or
+  with `-resultBundlePath`, and agents often build into a throwaway DerivedData, so
+  XCBuildStats watches `xcodebuild` processes directly: start time, end time and exit
+  status (non-zero or killed counts as failed). When the run did write log entries
+  (in its `-derivedDataPath` or the matching default DerivedData folder) those are
+  stored instead, so nothing is counted twice. Query runs such as
+  `-showBuildSettings` are ignored. Like the DerivedData watch, this only works while
+  the app is running; turn it off under Settings → General.
 - **Known limitation:** Xcode's log store records a cancelled build with no
   cancellation marker, so a build you stop midway counts as a (short) successful
   build.
@@ -59,14 +71,17 @@ Gatekeeper warnings. **Launch at login is enabled automatically** on first run
 - Switch **Day / Week / Month / Year**; use **‹ ›** to move between periods and
   **Current** to jump back to now.
 - Hover a bar to see its exact minutes.
+- **All / Xcode / CLI** in the header picks which builds are counted; with **All**
+  the chart stacks Xcode (blue) and CLI (orange) and a legend row shows each total.
 - Quick tools at the bottom: delete DerivedData, reset SPM caches, quit or launch
   Xcode, and Clean restart (quit → wipe DerivedData → relaunch). The cache tools
   ask you to quit Xcode first so its packages stay intact; launching reopens the
   Xcode version you last used (handy with multiple Xcodes installed).
 - **Settings (⚙︎):**
   - **General** — launch at login, what the menu bar shows (today / selected
-    period), animations, and build-finished notifications (all builds, or only
-    ones longer than a chosen duration).
+    period), animations, build-finished notifications (all builds, or only
+    ones longer than a chosen duration; Xcode builds only), and tracking of
+    command-line builds.
   - **Projects** — include/exclude specific projects from the stats.
   - **Data** — app version, database path, reveal it in Finder, export to CSV,
     or clear the database.
@@ -93,6 +108,9 @@ swift test
 ```
 Covers manifest parsing and clean-vs-build classification, day/week/month/year
 aggregation and period boundaries (incl. midnight rollover), navigation limits,
+Xcode-vs-CLI classification and `xcodebuild` argv parsing, the process monitor
+(against a stand-in binary), log-entry vs process-timing deduplication, the schema
+migration,
 SQLite round-trip / dedup / clear, the DerivedData-deletion diff (with safeguards
 against false positives from transient reads), duration formatting, and CSV export.
 

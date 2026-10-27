@@ -10,6 +10,7 @@
 		0205A546AF94EE6D2B16CCA0 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A2B07974BEB69890A5B694 /* SettingsWindowController.swift */; };
 		146D877A368905B2DF31C859 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 955D4C08C45F70F22CE4A5E6 /* Assets.xcassets */; };
 		178BE07DDC5D76F34DF84889 /* XcodeTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD40DF455CBB1A281ECA035B /* XcodeTools.swift */; };
+		18D1B46791564BCF887480DF /* XcodebuildInvocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD3EF8900BC61D87EFBF8082 /* XcodebuildInvocation.swift */; };
 		1F3AB26F0D19BFC0416CE82B /* Aggregator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB084A308998206E2393014E /* Aggregator.swift */; };
 		2AF3FEC13BDF0E81875658BA /* DerivedDataWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D8FDB642CB68555C33678E1 /* DerivedDataWatcher.swift */; };
 		2C5427F6DBD3DF486852CF9E /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 611A82359FD5CE32C59826CA /* Preferences.swift */; };
@@ -21,6 +22,7 @@
 		6207AD0C3677936CCA84C423 /* BuildStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 096BBD02772B78A74F671CD2 /* BuildStore.swift */; };
 		8BD50D9ADE0F8E6BCF1A2DA8 /* Manifest.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5CAE56988E4FE48857B28C3 /* Manifest.swift */; };
 		9CD232CD8218E21ACEA061BE /* XCBuildStatsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BB46BD0C372E774CE3639CE /* XCBuildStatsApp.swift */; };
+		AA4D8692783C03A18AD33BFF /* XcodebuildMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55FF546235CD248BF29A9331 /* XcodebuildMonitor.swift */; };
 		B3197F9FBC298607FE1CB7BB /* BuildRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A6A83AFF8BA6C5487D98903 /* BuildRecord.swift */; };
 		C9E92B484475D8FD0635507A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 084FF8D5A761E928242E81D1 /* SettingsView.swift */; };
 		E0E7138D9E398A95B1AE19EE /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F64309C78BE50D00079FBC21 /* DashboardView.swift */; };
@@ -35,6 +37,7 @@
 		1A6A83AFF8BA6C5487D98903 /* BuildRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildRecord.swift; sourceTree = "<group>"; };
 		1ACDAB8E72C54D16D240D7BC /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		23A169CB3A5780575621CB67 /* ManifestScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManifestScanner.swift; sourceTree = "<group>"; };
+		55FF546235CD248BF29A9331 /* XcodebuildMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XcodebuildMonitor.swift; sourceTree = "<group>"; };
 		611A82359FD5CE32C59826CA /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
 		7BB46BD0C372E774CE3639CE /* XCBuildStatsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XCBuildStatsApp.swift; sourceTree = "<group>"; };
 		7D8FDB642CB68555C33678E1 /* DerivedDataWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DerivedDataWatcher.swift; sourceTree = "<group>"; };
@@ -50,6 +53,7 @@
 		F64309C78BE50D00079FBC21 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		F776799190D0194994CC7C8A /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		FD0905469685285F3CC00F7C /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
+		FD3EF8900BC61D87EFBF8082 /* XcodebuildInvocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XcodebuildInvocation.swift; sourceTree = "<group>"; };
 		FD40DF455CBB1A281ECA035B /* XcodeTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XcodeTools.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -101,6 +105,7 @@
 			isa = PBXGroup;
 			children = (
 				23A169CB3A5780575621CB67 /* ManifestScanner.swift */,
+				FD3EF8900BC61D87EFBF8082 /* XcodebuildInvocation.swift */,
 			);
 			path = Ingest;
 			sourceTree = "<group>";
@@ -128,6 +133,7 @@
 			isa = PBXGroup;
 			children = (
 				7D8FDB642CB68555C33678E1 /* DerivedDataWatcher.swift */,
+				55FF546235CD248BF29A9331 /* XcodebuildMonitor.swift */,
 			);
 			path = Watch;
 			sourceTree = "<group>";
@@ -317,6 +323,8 @@
 				0205A546AF94EE6D2B16CCA0 /* SettingsWindowController.swift in Sources */,
 				9CD232CD8218E21ACEA061BE /* XCBuildStatsApp.swift in Sources */,
 				178BE07DDC5D76F34DF84889 /* XcodeTools.swift in Sources */,
+				18D1B46791564BCF887480DF /* XcodebuildInvocation.swift in Sources */,
+				AA4D8692783C03A18AD33BFF /* XcodebuildMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

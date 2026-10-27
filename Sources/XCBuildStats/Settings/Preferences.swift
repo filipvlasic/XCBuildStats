@@ -20,6 +20,18 @@ final class Preferences {
         }
     }
 
+    var sourceFilter: SourceFilter {
+        didSet {
+            defaults.set(sourceFilter.rawValue, forKey: Keys.sourceFilter)
+        }
+    }
+
+    var trackCommandLineBuilds: Bool {
+        didSet {
+            defaults.set(trackCommandLineBuilds, forKey: Keys.trackCommandLineBuilds)
+        }
+    }
+
     var excludedProjects: Set<String> {
         didSet {
             defaults.set(Array(excludedProjects), forKey: Keys.excludedProjects)
@@ -64,6 +76,8 @@ final class Preferences {
 
     private enum Keys {
         static let menuBarDisplay: String = "menuBarDisplay"
+        static let sourceFilter: String = "sourceFilter"
+        static let trackCommandLineBuilds: String = "trackCommandLineBuilds"
         static let excludedProjects: String = "excludedProjects"
         static let disableAnimations: String = "disableAnimations"
         static let pulseMenuBar: String = "pulseMenuBar"
@@ -75,6 +89,8 @@ final class Preferences {
     private init() {
         let rawDisplay: String? = defaults.string(forKey: Keys.menuBarDisplay)
         menuBarDisplay = rawDisplay.flatMap(MenuBarDisplay.init(rawValue:)) ?? .todayTotal
+        sourceFilter = defaults.string(forKey: Keys.sourceFilter).flatMap(SourceFilter.init(rawValue:)) ?? .all
+        trackCommandLineBuilds = defaults.object(forKey: Keys.trackCommandLineBuilds) as? Bool ?? true
         let excluded: [String] = defaults.stringArray(forKey: Keys.excludedProjects) ?? []
         excludedProjects = Set(excluded)
         disableAnimations = defaults.bool(forKey: Keys.disableAnimations)

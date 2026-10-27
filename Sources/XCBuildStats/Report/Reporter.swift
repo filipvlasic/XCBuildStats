@@ -43,6 +43,15 @@ enum Reporter {
                 failedDuration: failedDuration
             )
             print("Build success: \(summary.successCount) of \(summary.count) succeeded (\(summary.failedCount) failed, \(summary.successPercent)%)")
+            let sources: [String] = BuildSource.allCases.compactMap { source in
+                let matching: [BuildRecord] = builds.filter { $0.source == source }
+                guard !matching.isEmpty else {
+                    return nil
+                }
+                let total: TimeInterval = matching.reduce(0) { $0 + $1.duration }
+                return "\(source == .xcode ? "Xcode" : "CLI") \(Format.duration(total)) (\(matching.count) \(matching.count == 1 ? "build" : "builds"))"
+            }
+            print("Sources:       \(sources.joined(separator: " · "))")
         }
         print("")
 

@@ -18,7 +18,7 @@ enum Exporter {
     }
 
     static func makeCSV(_ builds: [BuildRecord]) -> String {
-        var lines: [String] = ["project,scheme,title,started,stopped,duration_seconds,succeeded,errors,warnings,status,is_clean"]
+        var lines: [String] = ["project,scheme,title,started,stopped,duration_seconds,succeeded,errors,warnings,status,is_clean,source"]
         let formatter: ISO8601DateFormatter = ISO8601DateFormatter()
         for build in builds {
             let fields: [String] = [
@@ -32,7 +32,8 @@ enum Exporter {
                 String(build.errors),
                 String(build.warnings),
                 build.status ?? "",
-                build.isClean ? "1" : "0"
+                build.isClean ? "1" : "0",
+                build.source.rawValue
             ]
             lines.append(fields.map(escape).joined(separator: ","))
         }

@@ -51,6 +51,28 @@ enum Grouping: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which builds the dashboard counts: everything, or only one source.
+enum SourceFilter: String, CaseIterable, Identifiable {
+    case all = "All"
+    case xcode = "Xcode"
+    case cli = "CLI"
+
+    var id: String {
+        return rawValue
+    }
+
+    func includes(_ source: BuildSource) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .xcode:
+            return source == .xcode
+        case .cli:
+            return source == .cli
+        }
+    }
+}
+
 struct Bar: Identifiable {
     let start: Date
     let minutes: Double
@@ -98,6 +120,27 @@ struct PeriodSummary {
             percent = max(percent, 1)
         }
         return percent
+    }
+}
+
+/// One source's share of a chart bar.
+struct SourceBar: Identifiable {
+    let start: Date
+    let source: BuildSource
+    let minutes: Double
+
+    var id: String {
+        return "\(source.rawValue)|\(start.timeIntervalSince1970)"
+    }
+}
+
+struct SourceStat: Identifiable {
+    let source: BuildSource
+    let totalDuration: TimeInterval
+    let count: Int
+
+    var id: BuildSource {
+        return source
     }
 }
 
@@ -165,6 +208,25 @@ enum Aggregator {
         return totals
             .map { Bar(start: $0.key, minutes: $0.value / 60) }
             .sorted { $0.start < $1.start }
+    }
+
+    static func sourceBars(_ builds: [BuildRecord], in period: DateInterval, subComponent: Calendar.Component, calendar: Calendar) -> [SourceBar] {
+        return BuildSource.allCases.flatMap { source in
+            bars(builds.filter { $0.source == source }, in: period, subComponent: subComponent, calendar: calendar)
+                .map { SourceBar(start: $0.start, source: source, minutes: $0.minutes) }
+        }
+    }
+
+    /// Per-source totals, in `BuildSource` order, omitting sources with no builds.
+    static func sourceStats(_ builds: [BuildRecord], in period: DateInterval) -> [SourceStat] {
+        let inPeriod: [BuildRecord] = self.builds(builds, in: period)
+        return BuildSource.allCases.compactMap { source in
+            let matching: [BuildRecord] = inPeriod.filter { $0.source == source }
+            guard !matching.isEmpty else {
+                return nil
+            }
+            return SourceStat(source: source, totalDuration: matching.reduce(0) { $0 + $1.duration }, count: matching.count)
+        }
     }
 
     /// Fractional change in total build time for the period at `offset` versus the

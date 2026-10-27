@@ -15,6 +15,7 @@ final class BuildStore {
         )
         open()
         createSchema()
+        migrateSchema()
     }
 
     convenience init() {
@@ -53,7 +54,8 @@ final class BuildStore {
             succeeded INTEGER NOT NULL,
             errors INTEGER NOT NULL,
             warnings INTEGER NOT NULL,
-            status TEXT
+            status TEXT,
+            source TEXT NOT NULL DEFAULT 'xcode'
         );
         """)
         exec("""
@@ -66,6 +68,66 @@ final class BuildStore {
         """)
     }
 
+    private func migrateSchema() {
+        if !columnNames(of: "builds").contains("source") {
+            exec("ALTER TABLE builds ADD COLUMN source TEXT NOT NULL DEFAULT 'xcode';")
+        }
+        classifyCommandLineBuilds()
+    }
+
+    /// Rows stored before the source was recorded — or by an older app version
+    /// sharing this file — default to Xcode; their title still tells a
+    /// command-line build apart. Idempotent, so it runs on every open.
+    private func classifyCommandLineBuilds() {
+        var ids: [String] = []
+        var select: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "SELECT id, title FROM builds WHERE source = 'xcode';", -1, &select, nil) == SQLITE_OK else {
+            return
+        }
+        while sqlite3_step(select) == SQLITE_ROW {
+            if BuildSource.inferred(fromTitle: columnText(select, 1)) == .cli, let id: String = columnText(select, 0) {
+                ids.append(id)
+            }
+        }
+        sqlite3_finalize(select)
+        guard !ids.isEmpty else {
+            return
+        }
+        var update: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "UPDATE builds SET source = ?1 WHERE id = ?2;", -1, &update, nil) == SQLITE_OK else {
+            return
+        }
+        defer {
+            sqlite3_finalize(update)
+        }
+        exec("BEGIN TRANSACTION;")
+        for id in ids {
+            sqlite3_reset(update)
+            sqlite3_clear_bindings(update)
+            bindText(update, 1, BuildSource.cli.rawValue)
+            bindText(update, 2, id)
+            sqlite3_step(update)
+        }
+        exec("COMMIT;")
+    }
+
+    private func columnNames(of table: String) -> Set<String> {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, "PRAGMA table_info(\(table));", -1, &statement, nil) == SQLITE_OK else {
+            return []
+        }
+        defer {
+            sqlite3_finalize(statement)
+        }
+        var names: Set<String> = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let name: String = columnText(statement, 1) {
+                names.insert(name)
+            }
+        }
+        return names
+    }
+
     /// Returns the records that were actually inserted (already-known ids are ignored).
     @discardableResult
     func ingest(_ records: [BuildRecord]) -> [BuildRecord] {
@@ -74,8 +136,8 @@ final class BuildStore {
         }
         let sql: String = """
         INSERT OR IGNORE INTO builds
-        (id, project, scheme, title, started, stopped, duration, succeeded, errors, warnings, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        (id, project, scheme, title, started, stopped, duration, succeeded, errors, warnings, status, source)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
@@ -100,6 +162,7 @@ final class BuildStore {
             sqlite3_bind_int(statement, 9, Int32(record.errors))
             sqlite3_bind_int(statement, 10, Int32(record.warnings))
             bindText(statement, 11, record.status)
+            bindText(statement, 12, record.source.rawValue)
             if sqlite3_step(statement) == SQLITE_DONE, sqlite3_changes(db) > 0 {
                 inserted.append(record)
             }
@@ -109,10 +172,11 @@ final class BuildStore {
     }
 
     /// Re-applies the outcome to already-stored rows: a build first stored as
-    /// failed can turn out successful once its activity log is readable.
+    /// failed can turn out successful once its activity log is readable. The
+    /// source is re-applied too, for rows an older app version stored without one.
     @discardableResult
     func reconcileOutcomes(_ records: [BuildRecord]) -> Int {
-        let sql: String = "UPDATE builds SET succeeded = ?2 WHERE id = ?1 AND succeeded != ?2;"
+        let sql: String = "UPDATE builds SET succeeded = ?2, source = ?3 WHERE id = ?1 AND (succeeded != ?2 OR source != ?3);"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             return 0
@@ -126,6 +190,7 @@ final class BuildStore {
             sqlite3_clear_bindings(statement)
             bindText(statement, 1, record.id)
             sqlite3_bind_int(statement, 2, record.succeeded ? 1 : 0)
+            bindText(statement, 3, record.source.rawValue)
             if sqlite3_step(statement) == SQLITE_DONE {
                 updated += Int(sqlite3_changes(db))
             }
@@ -135,7 +200,7 @@ final class BuildStore {
 
     func allBuilds() -> [BuildRecord] {
         let sql: String = """
-        SELECT id, project, scheme, title, started, stopped, succeeded, errors, warnings, status
+        SELECT id, project, scheme, title, started, stopped, succeeded, errors, warnings, status, source
         FROM builds ORDER BY started;
         """
         var statement: OpaquePointer?
@@ -159,7 +224,8 @@ final class BuildStore {
                 succeeded: sqlite3_column_int(statement, 6) != 0,
                 errors: Int(sqlite3_column_int(statement, 7)),
                 warnings: Int(sqlite3_column_int(statement, 8)),
-                status: columnText(statement, 9)
+                status: columnText(statement, 9),
+                source: columnText(statement, 10).flatMap(BuildSource.init(rawValue:)) ?? .xcode
             )
             result.append(record)
         }

@@ -32,6 +32,7 @@ struct DashboardView: View {
             picker
             navRow
             summaryRow
+            sourceRow
             longestRow
             cleanRow
             failuresRow
@@ -71,6 +72,16 @@ struct DashboardView: View {
             Image(systemName: "hammer.fill")
             Text("XCBuildStats").font(.headline)
             Spacer()
+            Picker("", selection: $model.sourceFilter) {
+                ForEach(SourceFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .controlSize(.small)
+            .help("Xcode builds, command-line builds (xcodebuild: Claude Code and other agents, scripts), or both")
             Button {
                 // Close the popover first: it sits at status-window level and would
                 // otherwise cover the settings window and keep key focus.
@@ -170,6 +181,29 @@ struct DashboardView: View {
         }
     }
 
+    /// Per-source split of the combined total; doubles as the chart's legend.
+    @ViewBuilder
+    private var sourceRow: some View {
+        let stats: [SourceStat] = model.sourceStats
+        if model.sourceFilter == .all, stats.contains(where: { $0.source == .cli }) {
+            HStack(spacing: 12) {
+                ForEach(stats) { stat in
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(stat.source.color)
+                            .frame(width: 7, height: 7)
+                        Text(stat.source.label)
+                            .fontWeight(.medium)
+                        Text("\(Format.duration(stat.totalDuration)) · \(stat.count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .font(.caption)
+            .monospacedDigit()
+        }
+    }
+
     @ViewBuilder
     private var longestRow: some View {
         if let longest: BuildRecord = model.longestBuild {
@@ -223,9 +257,10 @@ struct DashboardView: View {
                 Image(systemName: model.hasAnyBuilds ? "chart.bar" : "hammer")
                     .font(.system(size: 28))
                     .foregroundStyle(.tertiary)
-                Text(model.hasAnyBuilds ? "No builds in this period." : "Build something in Xcode to get started.")
+                Text(emptyStateText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity, minHeight: 140)
         } else {
@@ -233,15 +268,37 @@ struct DashboardView: View {
         }
     }
 
+    private var emptyStateText: String {
+        if model.hasAnyBuilds {
+            return "No builds in this period."
+        }
+        if model.sourceFilter == .cli {
+            return "No command-line builds yet.\nxcodebuild runs (Claude Code, scripts) show up here."
+        }
+        return "Build something in Xcode to get started."
+    }
+
     private var chart: some View {
         Chart {
-            ForEach(model.bars) { bar in
-                BarMark(
-                    x: .value("Vrijeme", bar.start, unit: model.grouping.subComponent),
-                    y: .value("Minute", bar.minutes * chartProgress)
-                )
-                .foregroundStyle(barGradient(for: bar))
-                .cornerRadius(4)
+            if model.sourceFilter == .all {
+                // Marks sharing an x value stack: Xcode at the bottom, CLI on top.
+                ForEach(model.sourceBars) { part in
+                    BarMark(
+                        x: .value("Vrijeme", part.start, unit: model.grouping.subComponent),
+                        y: .value("Minute", part.minutes * chartProgress)
+                    )
+                    .foregroundStyle(barGradient(start: part.start, color: part.source.color))
+                    .cornerRadius(4)
+                }
+            } else {
+                ForEach(model.bars) { bar in
+                    BarMark(
+                        x: .value("Vrijeme", bar.start, unit: model.grouping.subComponent),
+                        y: .value("Minute", bar.minutes * chartProgress)
+                    )
+                    .foregroundStyle(barGradient(start: bar.start, color: singleSourceColor))
+                    .cornerRadius(4)
+                }
             }
             if let hoveredBar {
                 RuleMark(x: .value("Vrijeme", hoveredBar.start, unit: model.grouping.subComponent))
@@ -292,14 +349,22 @@ struct DashboardView: View {
             hoveredBar = nil
             animateBars()
         }
+        .onChange(of: model.sourceFilter) { _, _ in
+            hoveredBar = nil
+            animateBars()
+        }
     }
 
-    private func barGradient(for bar: Bar) -> LinearGradient {
-        let isDimmed: Bool = hoveredBar != nil && hoveredBar?.id != bar.id
+    private var singleSourceColor: Color {
+        return model.sourceFilter == .cli ? BuildSource.cli.color : BuildSource.xcode.color
+    }
+
+    private func barGradient(start: Date, color: Color) -> LinearGradient {
+        let isDimmed: Bool = hoveredBar != nil && hoveredBar?.start != start
         return LinearGradient(
             colors: [
-                Color.accentColor.opacity(isDimmed ? 0.35 : 1.0),
-                Color.accentColor.opacity(isDimmed ? 0.2 : 0.6)
+                color.opacity(isDimmed ? 0.35 : 1.0),
+                color.opacity(isDimmed ? 0.2 : 0.6)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -315,6 +380,22 @@ struct DashboardView: View {
             Text(Format.duration(bar.minutes * 60))
                 .font(.caption)
                 .monospacedDigit()
+            if model.sourceFilter == .all {
+                let parts: [SourceBar] = model.sourceBars.filter { $0.start == bar.start }
+                if parts.count > 1 {
+                    ForEach(parts) { part in
+                        HStack(spacing: 3) {
+                            Circle()
+                                .fill(part.source.color)
+                                .frame(width: 5, height: 5)
+                            Text("\(part.source.label) \(Format.duration(part.minutes * 60))")
+                        }
+                        .font(.caption2)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            }
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
@@ -563,6 +644,26 @@ struct DashboardView: View {
             return .dateTime.day()
         case .year:
             return .dateTime.month(.defaultDigits)
+        }
+    }
+}
+
+private extension BuildSource {
+    var label: String {
+        switch self {
+        case .xcode:
+            return "Xcode"
+        case .cli:
+            return "CLI"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .xcode:
+            return .accentColor
+        case .cli:
+            return .orange
         }
     }
 }

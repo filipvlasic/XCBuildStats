@@ -5,6 +5,7 @@ struct LogStoreManifest: Decodable {
 }
 
 struct LogRecord: Decodable {
+    let className: String?
     let domainType: String?
     let title: String?
     let signature: String?
@@ -17,6 +18,7 @@ struct LogRecord: Decodable {
     let primaryObservable: PrimaryObservable?
 
     enum CodingKeys: String, CodingKey {
+        case className
         case domainType
         case title
         case signature

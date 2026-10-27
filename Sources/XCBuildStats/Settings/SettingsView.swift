@@ -25,7 +25,7 @@ struct SettingsView: View {
                     Label("Data", systemImage: "externaldrive")
                 }
         }
-        .frame(width: 440, height: 400)
+        .frame(width: 440, height: 460)
     }
 
     private var generalTab: some View {
@@ -99,6 +99,14 @@ struct SettingsView: View {
                         }
                     }
                 }
+            }
+            Section {
+                Toggle("Track command-line builds", isOn: $preferences.trackCommandLineBuilds)
+                    .onChange(of: preferences.trackCommandLineBuilds) { _, enabled in
+                        model.setCommandLineTracking(enabled)
+                    }
+            } footer: {
+                Text("Counts xcodebuild runs outside Xcode (Claude Code and other agents, scripts, Terminal) while XCBuildStats is running. Switch the dashboard between All, Xcode and CLI in its header.")
             }
         }
         .formStyle(.grouped)
